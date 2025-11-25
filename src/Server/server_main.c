@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     if (argc >= 3) ip = argv[2];
     if (argc >= 4) port = atoi(argv[3]);
 
-    /*
+    // create root directory if it doesn't exist
     struct stat st = {0};
     if (stat(root_dir, &st) == -1) {
         if (mkdir(root_dir, 0777) == -1) {
@@ -48,10 +48,6 @@ int main(int argc, char *argv[]) {
         perror("opendir");
         exit(EXIT_FAILURE);
     }
-    */
-    printf("ip: %s\n", ip);
-    printf("port: %d\n", port);
-    printf("root_dir: %s\n", root_dir);
 
     // Create server socket
     server_socket = create_server_socket(port);
@@ -60,8 +56,8 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Server listening on %s:%d\n", ip, port);
-    //printf("Root directory: %s\n", root_dir);
-    /*
+    printf("Root directory: %s\n", root_dir);
+    
     while (1) {
         struct sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
@@ -81,13 +77,13 @@ int main(int argc, char *argv[]) {
         } else if (pid == 0) {
             // Child process
             close(server_socket);
-            handle_client(client_socket, root_dir);
+            //handle_client(client_socket, root_dir);
             exit(0);
         } else {
             // Parent process
             close(client_socket);
         }
-    }*/
+    }
 
     close(server_socket);
 
