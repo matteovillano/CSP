@@ -47,7 +47,5 @@ int main(int argc, char *argv[]) {
     printf("port: %d\n", port);
     printf("root_dir: %s\n", root_dir);
 
-    printf("\n");
-
     return 0;
 }
