@@ -2,10 +2,23 @@
 #include "users.h"
 
 int user_session(int id) {
+  char username[USERNAME_LENGTH];
+  get_username_by_id(id, username);
+
+  DIR *dir;
+  dir = opendir(username);
+  if (dir == NULL) {
+    printf("Error opening directory\n");
+    return -1;
+  }
+  struct dirent *entry;
+  while ((entry = readdir(dir)) != NULL) {
+    printf("%s\n", entry->d_name);
+  }
+  closedir(dir);
   while (1) {
-    char command[MAX_INPUT];
-    char username[USERNAME_LENGTH];
-    get_username_by_id(id, username);
+    char command[MAX_COMMAND_LENGTH];
+
     printf("User %s> ", username);
     scanf("%s", command);
 

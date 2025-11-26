@@ -1,3 +1,6 @@
+#ifndef USERS_H
+#define USERS_H
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -29,3 +32,5 @@ int save_users();
 int load_users();
 
 int print_users();
+
+#endif

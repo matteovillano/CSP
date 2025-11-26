@@ -1,0 +1,10 @@
+int create();
+int chmod();
+int move();
+int upload();
+int download();
+int cd();
+int list();
+int read();
+int write();
+int del();
