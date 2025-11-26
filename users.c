@@ -1,4 +1,5 @@
 #include "users.h"
+#include "user_session.h"
 
 // this variable should be stored in main
 DIR *dir;
@@ -251,7 +252,7 @@ int main() {
   }
 
   printf("User Management Shell\n");
-  printf("Commands: create <username>, delete <username>, exit\n");
+  printf("Commands: create <username>, delete <username>, login <username>, exit\n");
 
   while (1) {
     printf("> ");
@@ -278,7 +279,14 @@ int main() {
         } else {
           printf("User %s not found.\n", username);
         }
-      } else {
+      } else if (strcmp(command, "login") == 0) {
+        int id=get_id_by_username(username);
+        if(id!=-1){
+            user_session(id);
+        }else{
+            printf("User %s not found.\n", username);
+        }
+      }else {
         printf("Unknown command: %s\n", command);
       }
     } else {
