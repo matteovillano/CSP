@@ -3,7 +3,7 @@
 
 int user_session(int id) {
   while (1) {
-    char command[50];
+    char command[MAX_INPUT];
     char username[USERNAME_LENGTH];
     get_username_by_id(id, username);
     printf("User %s> ", username);
