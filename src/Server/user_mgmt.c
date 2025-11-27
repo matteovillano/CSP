@@ -34,7 +34,7 @@ int handle_client(int client_socket, const char *root_dir) {
         if (num_args == 2) {
         if (strcmp(command, "create_user") == 0) {
             printf("Creating user: %s\n", username);
-            create_user(username, 0);
+            create_user(username, 0, root_dir);
             printf("User %s created successfully.\n", username);
         } else if (strcmp(command, "delete") == 0) {
             int id = get_id_by_username(username);
