@@ -29,10 +29,21 @@ int main(int argc, char *argv[]) {
     if (client_socket < 0) exit(EXIT_FAILURE);
 
     printf("Connected to server at %s:%d\n", server_ip, server_port);
+    printf("> ");
 
+    char *buffer = calloc(256, 1);
     while (1)
     {
-        
+        if (fgets(buffer, 256, stdin) == NULL)
+            continue;
+        else
+            if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0)
+                printf("send");
+            else
+                printf("error");
+
+        printf("> ");
+        int bytes_received = recv_all(client_socket, buffer, sizeof(buffer) - 1);
     }
     
 

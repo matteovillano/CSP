@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include "../../include/network.h"
 #include "../../include/utils.h"
+#include "../../include/user_session.h"
 
 int server_socket = -1;
 
@@ -77,7 +78,7 @@ int main(int argc, char *argv[]) {
         } else if (pid == 0) {
             // Child process
             close(server_socket);
-            //handle_client(client_socket, root_dir);
+            handle_client(client_socket, root_dir);
             exit(0);
         } else {
             // Parent process

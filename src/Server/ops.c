@@ -1,4 +1,4 @@
-#include "ops.h"
+#include "../../include/ops.h"
 
 int op_create(int id, DIR* dir, char* args[], int arg_count) {
     
