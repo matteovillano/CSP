@@ -7,8 +7,8 @@
 #include <sys/stat.h> // For stat and mkdir
 #include <sys/types.h>
 #include <unistd.h>
-#include "network.h"
-#include "utils.h"
+#include "../../include/network.h"
+#include "../../include/utils.h"
 
 int server_socket = -1;
 

@@ -1,6 +1,6 @@
-#include "user_session.h"
-#include "ops.h"
-#include "users.h"
+#include "../../include/user_session.h"
+#include "../../include/ops.h"
+#include "../../include/users.h"
 
 int user_session(int id) {
   char username[USERNAME_LENGTH];

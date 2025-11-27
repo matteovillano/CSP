@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "network.h"
+#include "../../include/network.h"
 #include "utils.h"
 
 char current_user[256] = "";
