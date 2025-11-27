@@ -28,6 +28,12 @@ int send_all(int socket, const void *buffer, size_t length) {
     }
     return bytes_sent;
 }
+
+int send_string(int client_socket, char *str) {
+    int length = strlen(str);
+    send_all(client_socket, str, length);
+}
+
 /*
 int recv_all(int socket, void *buffer, size_t length) {
     char *ptr = (char *)buffer;
