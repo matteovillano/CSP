@@ -1,4 +1,5 @@
 #include "../../include/users.h"
+#include <pwd.h>
 //#include "user_session.h"
 
 // this variable should be stored in main
@@ -170,6 +171,15 @@ int create_os_user(char *username, mode_t permissions, const char *root_dir) {
         return -1;
       }
       umask(old_umask); // Restore the old umask
+      // change the owner of the directory to the user
+      struct passwd *pwd = getpwnam(username);
+      if (pwd == NULL) {
+          perror("getpwnam failed");
+      } else {
+          if (chown(user_dir, pwd->pw_uid, pwd->pw_gid) == -1) {
+              perror("chown failed");
+          }
+      }
       printf("System user %s created successfully at %s.\n", username, user_dir);
     } else {
       perror("useradd failed");
