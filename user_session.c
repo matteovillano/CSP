@@ -1,4 +1,5 @@
 #include "user_session.h"
+#include "ops.h"
 #include "users.h"
 
 int user_session(int id) {
@@ -11,49 +12,72 @@ int user_session(int id) {
     printf("Error opening directory\n");
     return -1;
   }
+  /* it is used to print the files in the directory, not necessary
   struct dirent *entry;
   while ((entry = readdir(dir)) != NULL) {
     printf("%s\n", entry->d_name);
   }
-  closedir(dir);
+  closedir(dir);*/
+
   while (1) {
-    char command[MAX_COMMAND_LENGTH];
+    char input_buffer[MAX_COMMAND_LENGTH];
+    char *args[10];
+    int arg_count = 0;
 
     printf("User %s> ", username);
-    scanf("%s", command);
+    if (fgets(input_buffer, sizeof(input_buffer), stdin) == NULL) {
+      break;
+    }
+
+    // Remove trailing newline
+    input_buffer[strcspn(input_buffer, "\n")] = 0;
+
+    // Tokenize input
+    char *token = strtok(input_buffer, " ");
+    while (token != NULL && arg_count < 10) {
+      args[arg_count++] = token;
+      token = strtok(NULL, " ");
+    }
+
+    if (arg_count == 0) {
+      continue;
+    }
+
+    char *command = args[0];
+    arg_count--;
 
     if (strcmp(command, "exit") == 0) {
       break;
     }
     if (strcmp(command, "create") == 0) {
-      printf("I execute create!\n");
+      op_create(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "chmod") == 0) {
-      printf("I execute chmod!\n");
+      op_changemod(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "move") == 0) {
-      printf("I execute move!\n");
+      op_move(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "upload") == 0) {
-      printf("I execute upload!\n");
+      op_upload(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "download") == 0) {
-      printf("I execute download!\n");
+      op_download(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "cd") == 0) {
-      printf("I execute rename!\n");
+      op_cd(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "list") == 0) {
-      printf("I execute list!\n");
+      op_list(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "read") == 0) {
-      printf("I execute read!\n");
+      op_read(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "write") == 0) {
-      printf("I execute write!\n");
+      op_write(id, dir, &args[1], arg_count);
     }
     if (strcmp(command, "delete") == 0) {
-      printf("I execute delete!\n");
+      op_del(id, dir, &args[1], arg_count);
     }
   }
   return 0;

@@ -3,15 +3,15 @@
 
 #include <dirent.h>
 
-int create(int id, DIR* dir, char* command);
-int chmod(int id, DIR* dir, char* command);
-int move(int id, DIR* dir, char* command);
-int upload(int id, DIR* dir, char* command);
-int download(int id, DIR* dir, char* command);
-int cd(int id, DIR* dir, char* command);
-int list(int id, DIR* dir, char* command);
-int read(int id, DIR* dir, char* command);
-int write(int id, DIR* dir, char* command);
-int del(int id, DIR* dir, char* command);
+int op_create(int id, DIR* dir, char* args[], int arg_count);
+int op_changemod(int id, DIR* dir, char* args[], int arg_count);
+int op_move(int id, DIR* dir, char* args[], int arg_count);
+int op_upload(int id, DIR* dir, char* args[], int arg_count);
+int op_download(int id, DIR* dir, char* args[], int arg_count);
+int op_cd(int id, DIR* dir, char* args[], int arg_count);
+int op_list(int id, DIR* dir, char* args[], int arg_count);
+int op_read(int id, DIR* dir, char* args[], int arg_count);
+int op_write(int id, DIR* dir, char* args[], int arg_count);
+int op_del(int id, DIR* dir, char* args[], int arg_count);
 
 #endif

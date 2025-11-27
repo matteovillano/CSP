@@ -1,51 +1,51 @@
 #include "ops.h"
 
-int create(int id, DIR* dir, char* command) {
+int op_create(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int chmod(int id, DIR* dir, char* command) {
+int op_changemod(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int move(int id, DIR* dir, char* command) {
+int op_move(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int upload(int id, DIR* dir, char* command) {
+int op_upload(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int download(int id, DIR* dir, char* command) {
+int op_download(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int cd(int id, DIR* dir, char* command) {
+int op_cd(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int list(int id, DIR* dir, char* command) {
+int op_list(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int read(int id, DIR* dir, char* command) {
+int op_read(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int write(int id, DIR* dir, char* command) {
+int op_write(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
 
-int del(int id, DIR* dir, char* command) {
+int op_del(int id, DIR* dir, char* args[], int arg_count) {
     
     return 0;
 }
