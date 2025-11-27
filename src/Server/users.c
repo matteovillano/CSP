@@ -131,7 +131,7 @@ int user_persistent_delete(int id) {
   return 0;
 }
 
-int create_os_user(char *username, int permissions, const char *root_dir) {
+int create_os_user(char *username, mode_t permissions, const char *root_dir) {
   if (!user_loaded) {
     load_users();
   }
@@ -164,10 +164,12 @@ int create_os_user(char *username, int permissions, const char *root_dir) {
       }
       char user_dir[512];
       snprintf(user_dir, sizeof(user_dir), "%s/%s", root_dir, username);
-      if (mkdir(user_dir, 0700) == -1) {
+      mode_t old_umask = umask(0000); // Set umask to 0, storing the old value
+      if (mkdir(user_dir, permissions) == -1) {
         perror("mkdir failed");
         return -1;
       }
+      umask(old_umask); // Restore the old umask
       printf("System user %s created successfully at %s.\n", username, user_dir);
     } else {
       perror("useradd failed");
@@ -227,7 +229,7 @@ int delete_os_user(int id) {
   return 0;
 }
 
-int create_user(char *username, int permissions, const char *root_dir) {
+int create_user(char *username, mode_t permissions, const char *root_dir) {
   if (create_os_user(username, permissions, root_dir)) {
     return -1;
   }

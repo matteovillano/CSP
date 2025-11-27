@@ -23,7 +23,7 @@ typedef struct {
   int permissions;
 } User;
 
-int create_user(char *username, int permissions, const char *root_dir);
+int create_user(char *username, mode_t permissions, const char *root_dir);
 int delete_user(int id);
 int get_id_by_username(char *username);
 int get_username_by_id(int id, char *username);

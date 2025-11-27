@@ -49,6 +49,6 @@ directories:
 	@mkdir -p $(OBJ_DIR)/common $(OBJ_DIR)/Server $(OBJ_DIR)/Client $(BIN_DIR)
 
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	rm -rf $(OBJ_DIR) $(BIN_DIR) users.dat root
 
 .PHONY: all clean directories server client
