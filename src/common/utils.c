@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "../../include/utils.h"
 
 void print_error(const char *msg) {
     perror(msg);
