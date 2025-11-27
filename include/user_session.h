@@ -3,6 +3,7 @@
 
 #define MAX_COMMAND_LENGTH 256
 
-int user_session(int id);
+int user_session(int client_socket, int id);
+int handle_client(int client_socket, const char *root_dir);
 
 #endif

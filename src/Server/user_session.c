@@ -1,8 +1,9 @@
 #include "../../include/user_session.h"
 #include "../../include/ops.h"
 #include "../../include/users.h"
+#include "../../include/utils.h"
 
-int user_session(int id) {
+int user_session(int client_socket, int id) {
   char username[USERNAME_LENGTH];
   get_username_by_id(id, username);
 
