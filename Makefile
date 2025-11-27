@@ -11,7 +11,7 @@ COMMON_SRCS = $(wildcard $(SRC_DIR)/common/*.c)
 COMMON_OBJS = $(patsubst $(SRC_DIR)/common/%.c, $(OBJ_DIR)/common/%.o, $(COMMON_SRCS))
 
 # Server sources
-SERVER_SRCS = $(wildcard $(SRC_DIR)/Server/*.c)
+SERVER_SRCS = $(filter-out $(SRC_DIR)/Server/offline_server.c, $(wildcard $(SRC_DIR)/Server/*.c))
 SERVER_OBJS = $(patsubst $(SRC_DIR)/Server/%.c, $(OBJ_DIR)/Server/%.o, $(SERVER_SRCS))
 
 # Client sources
@@ -26,6 +26,9 @@ Server: $(COMMON_OBJS) $(SERVER_OBJS)
 
 Client: $(COMMON_OBJS) $(CLIENT_OBJS)
 	$(CC) $(LDFLAGS) -o $(BIN_DIR)/Client $^
+
+OfflineServer: $(COMMON_OBJS) $(SERVER_OBJS)
+	gcc ./src/Server/offline_server.c ./src/Server/user_session.c ./src/Server/users.c ./src/Server/ops.c -o ./bin/offline_server
 
 # Compile common objects
 $(OBJ_DIR)/common/%.o: $(SRC_DIR)/common/%.c
