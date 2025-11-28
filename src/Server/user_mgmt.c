@@ -42,7 +42,7 @@ int handle_client(int client_socket, const char *root_dir) {
             if (strcmp(command, "delete") == 0) {
                 int id = get_id_by_username(username);
                 if (id != -1) {
-                    delete_user(id);
+                    delete_user(id, root_dir);
                 } else {
                     printf("User %s not found.\n", username);
                 }

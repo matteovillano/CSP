@@ -12,7 +12,7 @@ int user_count = 0;   // number of users in the system
 int next_user_id = 0; // next id to be assigned
 int user_loaded = 0;  // flag to check if users are loaded
 
-int add_on_local_structure(char *username, int permissions) {
+int add_on_local_structure(char *username, mode_t permissions) {
   if (user_count >= MAX_USERS) {
     printf("Maximum number of users reached.\n");
     return -1;
@@ -76,7 +76,7 @@ int print_users() {
   }
   printf("User count: %d\n", user_count);
   for (int i = 0; i < user_count; i++) {
-    printf("User ID: %d, Name: %s, Permissions: %d\n", users[i].id,
+    printf("User ID: %d, Name: %s, Permissions: %o\n", users[i].id,
            users[i].username, users[i].permissions);
   }
   return 0;
@@ -110,7 +110,7 @@ int save_users() {
   return 0;
 }
 
-int user_persistent_add(char *username, int permissions) {
+int user_persistent_add(char *username, mode_t permissions) {
   if (!user_loaded) {
     load_users();
   }
@@ -190,7 +190,7 @@ int create_os_user(char *username, mode_t permissions, const char *root_dir) {
   return 0;
 }
 
-int delete_os_user(int id) {
+int delete_os_user(int id, const char *root_dir) {
   if (!user_loaded) {
     load_users();
   }
@@ -216,7 +216,9 @@ int delete_os_user(int id) {
       // Delete directory recursively
       pid_t rm_pid = fork();
       if (rm_pid == 0) {
-        execlp("rm", "rm", "-rf", username, NULL);
+        char user_dir[512];
+        snprintf(user_dir, sizeof(user_dir), "%s/%s", root_dir, username);
+        execlp("rm", "rm", "-rf", user_dir, NULL);
         perror("execlp rm failed");
         exit(EXIT_FAILURE);
       } else if (rm_pid > 0) {
@@ -245,8 +247,8 @@ int create_user(char *username, mode_t permissions, const char *root_dir) {
   }
   return 0;
 }
-int delete_user(int id) {
-  if (delete_os_user(id)) {
+int delete_user(int id, const char *root_dir) {
+  if (delete_os_user(id, root_dir)) {
     return -1;
   }
   return 0;
