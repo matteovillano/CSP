@@ -24,5 +24,6 @@ int recv_all(int socket, void *buffer, size_t length);
 void init_privileges();
 void minimize_privileges();
 void restore_privileges();
+uid_t get_real_uid();
 
 #endif // UTILS_H

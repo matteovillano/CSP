@@ -89,3 +89,7 @@ void restore_privileges() {
         perror("seteuid(0) failed");
     }
 }
+
+uid_t get_real_uid() {
+    return real_uid;
+}

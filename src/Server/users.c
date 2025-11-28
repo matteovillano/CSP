@@ -145,7 +145,9 @@ int create_os_user(char *username, mode_t permissions, const char *root_dir) {
   pid_t pid = fork();
   if (pid == 0) {
     // Child process
-    execlp("useradd", "useradd", "-m", username, NULL);
+    char gid_str[16];
+    snprintf(gid_str, sizeof(gid_str), "%d", get_real_uid());
+    execlp("useradd", "useradd", "-m", "-g", gid_str, username, NULL);
     perror("execlp useradd failed");
     user_persistent_delete(get_id_by_username(username));
     exit(EXIT_FAILURE);
