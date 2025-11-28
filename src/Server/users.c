@@ -1,4 +1,5 @@
 #include "../../include/users.h"
+#include "../../include/utils.h"
 #include <pwd.h>
 //#include "user_session.h"
 
@@ -139,6 +140,8 @@ int create_os_user(char *username, mode_t permissions, const char *root_dir) {
   if (get_id_by_username(username) != -1) {
     return -1;
   }
+
+  restore_privileges();
   pid_t pid = fork();
   if (pid == 0) {
     // Child process
@@ -187,6 +190,7 @@ int create_os_user(char *username, mode_t permissions, const char *root_dir) {
       return -1;
     }
   }
+  minimize_privileges();
   return 0;
 }
 
@@ -198,6 +202,8 @@ int delete_os_user(int id, const char *root_dir) {
   if (get_username_by_id(id, username)) {
     return -1;
   }
+
+  restore_privileges();
   pid_t pid = fork();
   if (pid == 0) {
     // Child process
@@ -238,6 +244,7 @@ int delete_os_user(int id, const char *root_dir) {
     perror("userdel failed");
     return -1;
   }
+  minimize_privileges();
   return 0;
 }
 

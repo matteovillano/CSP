@@ -20,4 +20,9 @@ int send_all(int socket, const void *buffer, size_t length);
 // Helper to receive all data
 int recv_all(int socket, void *buffer, size_t length);
 
+// Privilege management
+void init_privileges();
+void minimize_privileges();
+void restore_privileges();
+
 #endif // UTILS_H

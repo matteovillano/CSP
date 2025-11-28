@@ -31,6 +31,10 @@ int main(int argc, char *argv[]) {
     if (argc >= 3) ip = argv[2];
     if (argc >= 4) port = atoi(argv[3]);
 
+    // Initialize and drop privileges
+    init_privileges();
+    minimize_privileges();
+
     // create root directory if it doesn't exist
     struct stat st = {0};
     if (stat(root_dir, &st) == -1) {
