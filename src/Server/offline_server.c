@@ -40,7 +40,8 @@ int main() {
       } else if (strcmp(command, "login") == 0) {
         int id = get_id_by_username(username);
         if (id != -1) {
-          user_session(id);
+          int client_socket = 0;
+          user_session(client_socket, id);
           return 0;
         } else {
           printf("User %s not found.\n", username);

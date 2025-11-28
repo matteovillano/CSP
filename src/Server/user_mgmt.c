@@ -27,6 +27,7 @@ int handle_client(int client_socket, const char *root_dir) {
         printf("Received command: %s\n", input);
 
         if (strcmp(input, "exit") == 0) {
+            printf("Exiting user management shell.\n");
             break;
         }
 

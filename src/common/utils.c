@@ -53,7 +53,7 @@ int recv_all(int socket, void *buffer, size_t length) {
     {
         ret = recv(socket, ptr + bytes_read, length - bytes_read, 0);
         bytes_read += ret;
-    } while (ptr[bytes_read - 1] != '\0');
+    } while (ptr[bytes_read-1] != 10||ptr[bytes_read - 1] != '\0');
 
     return bytes_read;
 }
