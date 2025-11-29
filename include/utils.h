@@ -21,7 +21,7 @@ int send_all(int socket, char *buffer, int length);
 int recv_all(int socket, char *buffer, int length);
 
 // Helper to send a string
-int send_string(int client_socket, char *str);
+void send_string(int client_socket, char *str);
 
 // Privilege management
 void init_privileges();

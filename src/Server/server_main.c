@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
         }
         printf("Created root directory: %s\n", root_dir);
     }
-
+    /*
     DIR *dir = opendir(root_dir);
     if (dir) {
         printf("Opened root directory: %s\n", root_dir);
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
         perror("opendir");
         exit(EXIT_FAILURE);
     }
-
+    */
     // Create server socket
     server_socket = create_server_socket(port);
     if (server_socket == -1) {
@@ -61,7 +61,6 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Server listening on %s:%d\n", ip, port);
-    printf("Root directory: %s\n", root_dir);
     
     while (1) {
         struct sockaddr_in client_addr;

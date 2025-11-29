@@ -12,14 +12,18 @@ int send_all(int socket, char *buffer, int length) {
         ret = send(socket, ptr + bytes_sent, length - bytes_sent, 0);
         if (ret == -1 && errno == EINTR)
             continue;
+        if (ret == -1){
+            perror("send failed");
+            exit(EXIT_FAILURE);
+        }
         bytes_sent += ret;
     }
     return bytes_sent;
 }
 
-int send_string(int client_socket, char *str) {
+void send_string(int client_socket, char *str) {
     int length = strlen(str);
-    return send_all(client_socket, str, length + 1);
+    send_all(client_socket, str, length + 1);
 }
 
 int recv_all(int socket, char *buffer, int length) {
@@ -28,6 +32,12 @@ int recv_all(int socket, char *buffer, int length) {
     do
     {
         ret = recv(socket, ptr + bytes_read, length - bytes_read, 0);
+        if (ret == -1 && errno == EINTR) continue;
+        if (ret == -1){
+            perror("recv failed");
+            exit(EXIT_FAILURE);
+        }
+        if (ret == 0) break;
         bytes_read += ret;
     } while (ptr[bytes_read - 1] != '\0');
 

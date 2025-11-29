@@ -11,7 +11,6 @@ int handle_client(int client_socket, const char *root_dir) {
     char permissions[5];
 
     printf("User Management Shell\n");
-    printf("Commands: create <username>, delete <username>, login <username>, exit\n");
 
     while (1) {
         int ret;
@@ -34,22 +33,23 @@ int handle_client(int client_socket, const char *root_dir) {
 
         if (num_args == 3) {
             if (strcmp(command, "create_user") == 0) {
-                printf("Creating user: %s\n", username);
-                create_user(username, strtol(permissions, NULL, 8), root_dir);
-                printf("User %s created successfully.\n", username);
-                ret = send_string(client_socket, "ok-create");
-                if (ret == 0)
-                    printf("error\n");
-                else
-                    printf("send ok-create\n");
+                ret = create_user(username, strtol(permissions, NULL, 8), root_dir);
+                if (!ret) {
+                    printf("User %s created successfully.\n", username);
+                    send_string(client_socket, "ok-create");
+                } else {
+                    send_string(client_socket, "err-create");
+                }
             } 
         } else if (num_args == 2) {
+            /* it is not specified in the assignment but it is a valid command */
             if (strcmp(command, "delete") == 0) {
                 int id = get_id_by_username(username);
                 if (id != -1) {
                     delete_user(id, root_dir);
+                    send_string(client_socket, "ok-delete");
                 } else {
-                    printf("User %s not found.\n", username);
+                    send_string(client_socket, "err-delete");
                 }
             } else if (strcmp(command, "login") == 0) {
                 int id = get_id_by_username(username);
@@ -59,15 +59,11 @@ int handle_client(int client_socket, const char *root_dir) {
                     user_session(client_socket, id);
                     return 0;
                 } else {
-                    ret = send_string(client_socket, "err-login");
-                    if (ret == 0)
-                        printf("error\n");
-                    else
-                        printf("send err-login\n");
+                    send_string(client_socket, "err-login");
                 }
             }
         }else {
-            printf("Invalid command format. Use: create <username> <permissions> or delete <username>\n");
+            send_string(client_socket, "err-invalid");
         }
         print_users();
     }

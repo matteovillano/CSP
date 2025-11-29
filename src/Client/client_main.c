@@ -32,6 +32,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
 
     printf("Connected to server at %s:%d\n", server_ip, server_port);
+    printf("Commands: create <username> <permissions>, delete <username>, login <username>, exit\n");
     printf("> ");
 
     char buffer[256];
@@ -41,25 +42,31 @@ int main(int argc, char *argv[]) {
         if (fgets(buffer, 256, stdin) == NULL)
             continue;
         else
-            if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0)
-                printf("error\n");
-            else
-                printf("send\n");
-
-        memset(buffer, 0, sizeof(buffer));
+            if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0) {
+                printf("error sending the message. Retry\n>");
+                continue;
+            }
+        
         int bytes_received = recv_all(client_socket, buffer, sizeof(buffer) - 1);
+        
+        // manage responses
         if (strcmp(buffer, "ok-create") == 0)
             printf("user created successfully\n");
         else if (strcmp(buffer, "ok-login") == 0){
             printf("user logged in successfully\n");
+            printf("> ");
             break;
-        }else
-            printf("error\n");
+        } else if (strcmp(buffer, "err-create") == 0)
+            printf("user creation failed\n");
+        else if (strcmp(buffer, "err-login") == 0)
+            printf("user login failed\n");
+        else if (strcmp(buffer, "err-invalid") == 0)
+            printf("invalid command\n");
+
         printf("> ");
     }
     
     // user session
-    printf("> ");
     while(1)
     {
         if (fgets(buffer, 256, stdin) == NULL)
