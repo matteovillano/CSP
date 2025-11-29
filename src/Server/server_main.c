@@ -31,6 +31,10 @@ int main(int argc, char *argv[]) {
     if (argc >= 3) ip = argv[2];
     if (argc >= 4) port = atoi(argv[3]);
 
+    // Initialize and drop privileges
+    init_privileges();
+    minimize_privileges();
+
     // create root directory if it doesn't exist
     struct stat st = {0};
     if (stat(root_dir, &st) == -1) {
@@ -40,7 +44,7 @@ int main(int argc, char *argv[]) {
         }
         printf("Created root directory: %s\n", root_dir);
     }
-
+    /*
     DIR *dir = opendir(root_dir);
     if (dir) {
         printf("Opened root directory: %s\n", root_dir);
@@ -49,7 +53,7 @@ int main(int argc, char *argv[]) {
         perror("opendir");
         exit(EXIT_FAILURE);
     }
-
+    */
     // Create server socket
     server_socket = create_server_socket(port);
     if (server_socket == -1) {
@@ -57,7 +61,6 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Server listening on %s:%d\n", ip, port);
-    printf("Root directory: %s\n", root_dir);
     
     while (1) {
         struct sockaddr_in client_addr;
