@@ -39,7 +39,7 @@ int recv_all(int socket, char *buffer, int length) {
         }
         if (ret == 0) break;
         bytes_read += ret;
-    } while (ptr[bytes_read-1] != 10||ptr[bytes_read - 1] != '\0');
+    } while (ptr[bytes_read - 1] != '\0');
 
     return bytes_read;
 }
