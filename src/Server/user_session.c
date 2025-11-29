@@ -7,6 +7,8 @@ int user_session(int client_socket, int id) {
   char username[USERNAME_LENGTH];
   get_username_by_id(id, username);
 
+  printf("------- User session --------\nUser: %s\n", username);
+  
   DIR *dir;
   dir = opendir(username);
   if (dir == NULL) {

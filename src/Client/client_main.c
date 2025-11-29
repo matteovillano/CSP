@@ -34,21 +34,48 @@ int main(int argc, char *argv[]) {
     printf("Connected to server at %s:%d\n", server_ip, server_port);
     printf("> ");
 
-    char *buffer = calloc(256, 1);
+    char buffer[256];
+    // creation and login user
     while (1)
     {
         if (fgets(buffer, 256, stdin) == NULL)
             continue;
         else
             if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0)
-                printf("send");
+                printf("error\n");
             else
-                printf("error");
+                printf("send\n");
 
+        memset(buffer, 0, sizeof(buffer));
+        int bytes_received = recv_all(client_socket, buffer, sizeof(buffer) - 1);
+        if (strcmp(buffer, "ok-create") == 0)
+            printf("user created successfully\n");
+        else if (strcmp(buffer, "ok-login") == 0){
+            printf("user logged in successfully\n");
+            break;
+        }else
+            printf("error\n");
         printf("> ");
-        //int bytes_received = recv_all(client_socket, buffer, sizeof(buffer) - 1);
     }
     
+    // user session
+    printf("> ");
+    while(1)
+    {
+        if (fgets(buffer, 256, stdin) == NULL)
+            continue;
+        else {
+            if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0)
+                printf("error\n");
+            
+            memset(buffer, 0, sizeof(buffer));
+            int bytes_received = recv_all(client_socket, buffer, sizeof(buffer) - 1);
+            if (bytes_received > 0) {
+                printf("%s\n", buffer);
+            }
+            printf("> ");
+        }
+    }
 
   return 0;
 }

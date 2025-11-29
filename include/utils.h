@@ -15,10 +15,13 @@
 void print_error(const char *msg);
 
 // Helper to send all data
-int send_all(int socket, const void *buffer, size_t length);
+int send_all(int socket, char *buffer, int length);
 
 // Helper to receive all data
-int recv_all(int socket, void *buffer, size_t length);
+int recv_all(int socket, char *buffer, int length);
+
+// Helper to send a string
+int send_string(int client_socket, char *str);
 
 // Privilege management
 void init_privileges();

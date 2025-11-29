@@ -14,7 +14,7 @@ int handle_client(int client_socket, const char *root_dir) {
     printf("Commands: create <username>, delete <username>, login <username>, exit\n");
 
     while (1) {
-
+        int ret;
         int bytes_received = recv_all(client_socket, input, sizeof(input) - 1);
         if (bytes_received <= 0) {
             printf("Client disconnected or error occurred.\n");
@@ -37,6 +37,11 @@ int handle_client(int client_socket, const char *root_dir) {
                 printf("Creating user: %s\n", username);
                 create_user(username, strtol(permissions, NULL, 8), root_dir);
                 printf("User %s created successfully.\n", username);
+                ret = send_string(client_socket, "ok-create");
+                if (ret == 0)
+                    printf("error\n");
+                else
+                    printf("send ok-create\n");
             } 
         } else if (num_args == 2) {
             if (strcmp(command, "delete") == 0) {
@@ -49,10 +54,16 @@ int handle_client(int client_socket, const char *root_dir) {
             } else if (strcmp(command, "login") == 0) {
                 int id = get_id_by_username(username);
                 if (id != -1) {
+                    printf("User %s logged in successfully.\n", username);
+                    send_string(client_socket, "ok-login");
                     user_session(client_socket, id);
                     return 0;
                 } else {
-                    printf("User %s not found.\n", username);
+                    ret = send_string(client_socket, "err-login");
+                    if (ret == 0)
+                        printf("error\n");
+                    else
+                        printf("send err-login\n");
                 }
             }
         }else {
