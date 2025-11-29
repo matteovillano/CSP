@@ -11,8 +11,8 @@ int client_socket = -1;
 char server_ip[INET_ADDRSTRLEN];
 int server_port;
 
-void create_and_login_user(char* buffer, int client_socket);
-void client_session(char* buffer, int client_socket);
+int create_and_login_user(char* buffer, int client_socket);
+int client_session(char* buffer, int client_socket);
 
 int main(int argc, char *argv[]) {
 
@@ -40,15 +40,21 @@ int main(int argc, char *argv[]) {
 
     char buffer[256];
     // creation and login user
-    create_and_login_user(buffer, client_socket);
+    if (!create_and_login_user(buffer, client_socket)) {
+        printf("Exiting\n");
+        return 0;
+    }
     
     // user session
-    client_session(buffer, client_socket);
+    if (!client_session(buffer, client_socket)) {
+        printf("Exiting\n");
+        return 0;
+    }
 
-  return 0;
+    return 0;
 }
 
-void create_and_login_user(char *buffer, int client_socket) {
+int create_and_login_user(char *buffer, int client_socket) {
     while (1)
     {
         // send command to server
@@ -77,13 +83,17 @@ void create_and_login_user(char *buffer, int client_socket) {
                 printf("user login failed\n");
             else if (strcmp(buffer, "err-invalid") == 0)
                 printf("invalid command\n");
+            else if (strcmp(buffer, "exit") == 0)
+                return 0;
         }
 
         printf("> ");
     }
+
+    return 1;
 }
 
-void client_session(char *buffer, int client_socket) {
+int client_session(char *buffer, int client_socket) {
     while(1)
     {
         // send command to server
@@ -100,10 +110,13 @@ void client_session(char *buffer, int client_socket) {
         
         // manage responses
         if (bytes_received > 0) {
-            
+            if (strcmp(buffer, "exit") == 0)
+                return 0;
         }
         
         printf("> ");
 
     }
+
+    return 1;
 }

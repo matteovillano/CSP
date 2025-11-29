@@ -27,7 +27,7 @@ int user_session(int client_socket, int id, const char *root_dir) {
 
     while (1) {
         char input[MAX_COMMAND_LENGTH];
-        char *args[10];
+        char *args[5];
         int arg_count = 0;
 
         // receive command from client
@@ -39,14 +39,10 @@ int user_session(int client_socket, int id, const char *root_dir) {
         if (strcmp(input, "exit") == 0) {
             break;
         }
-      
-        if (bytes_received > 0) {
-            printf("%s\n", input);
-        }
 
         // Tokenize input
         char *token = strtok(input, " ");
-        while (token != NULL && arg_count < 10) {
+        while (token != NULL) {
             args[arg_count++] = token;
             token = strtok(NULL, " ");
         }
@@ -58,9 +54,6 @@ int user_session(int client_socket, int id, const char *root_dir) {
         char *command = args[0];
         arg_count--;
 
-        if (strcmp(command, "exit") == 0) {
-            break;
-        }
         if (strcmp(command, "create") == 0) {
             op_create(id, dir, &args[1], arg_count);
         }
