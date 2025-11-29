@@ -56,7 +56,7 @@ int handle_client(int client_socket, const char *root_dir) {
                 if (id != -1) {
                     printf("User %s logged in successfully.\n", username);
                     send_string(client_socket, "ok-login");
-                    user_session(client_socket, id);
+                    user_session(client_socket, id, root_dir);
                     return 0;
                 } else {
                     send_string(client_socket, "err-login");

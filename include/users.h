@@ -18,9 +18,9 @@
 #define USERS_FILE "users.dat"
 
 typedef struct {
-  int id;
-  char username[USERNAME_LENGTH];
-  int permissions;
+    int id;
+    char username[USERNAME_LENGTH];
+    int permissions;
 } User;
 
 int create_user(char *username, mode_t permissions, const char *root_dir);
