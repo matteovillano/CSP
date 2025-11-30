@@ -67,25 +67,10 @@ int create_and_login_user(char *buffer, int client_socket) {
             }
         
         // receive response from server
-        int bytes_received = recv_all(client_socket, buffer, sizeof(buffer) - 1);
-        
+        memset(buffer, 0, 256);
+        int bytes_received = recv_all(client_socket, buffer, 255);
         // manage responses
-        if (bytes_received > 0) {   
-            if (strcmp(buffer, "ok-create") == 0)
-                printf("user created successfully\n");
-            else if (strcmp(buffer, "ok-login") == 0){
-                printf("user logged in successfully\n");
-                printf("> ");
-                break;
-            } else if (strcmp(buffer, "err-create") == 0)
-                printf("user creation failed\n");
-            else if (strcmp(buffer, "err-login") == 0)
-                printf("user login failed\n");
-            else if (strcmp(buffer, "err-invalid") == 0)
-                printf("invalid command\n");
-            else if (strcmp(buffer, "exit") == 0)
-                return 0;
-        }
+        printf("%s\n", buffer);
 
         printf("> ");
     }
@@ -106,12 +91,17 @@ int client_session(char *buffer, int client_socket) {
             }
         
         // receive response from server
-        int bytes_received = recv_all(client_socket, buffer, sizeof(buffer) - 1);
+        memset(buffer, 0, 256);
+        int bytes_received = recv_all(client_socket, buffer, 255);
+
+        printf("Received: %s\n", buffer);
         
         // manage responses
         if (bytes_received > 0) {
-            if (strcmp(buffer, "exit") == 0)
+            if (strcmp(buffer, "exit") == 0){
+                send_string(client_socket, "exit");
                 return 0;
+            }
         }
         
         printf("> ");
