@@ -1,5 +1,6 @@
 #include "../../include/ops.h"
 #include "../../include/utils.h"
+#include "../../include/users.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,11 +9,22 @@
 #include <unistd.h>
 
 int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
+    (void)id; (void)dir;
     char msg[256];
     
     if (arg_count < 2) {
         sprintf(msg, "err-Usage: create <filename> <permissions> or create -d <dirname> <permissions>");
         send_string(client_socket, msg);
+        return -1;
+    }
+
+    // Check if path is absolute or tries to go up
+    if (args[1][0] == '/' || strstr(args[1], "..")) {
+        send_string(client_socket, "err-Access denied: Cannot create outside home directory");
+        return -1;
+    }
+    if (strcmp(args[0], "-d") != 0 && (args[0][0] == '/' || strstr(args[0], ".."))) {
+        send_string(client_socket, "err-Access denied: Cannot create outside home directory");
         return -1;
     }
 
@@ -24,7 +36,8 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
         
         mode_t mode = (mode_t)strtol(args[2], NULL, 8);
 
-        if (mkdirat(dirfd(dir), args[1], mode) == -1) {
+        // AT_FDCWD is a constant that represents the current working directory
+        if (mkdirat(AT_FDCWD, args[1], mode) == -1) {
             send_string(client_socket, "err-Error creating directory");
             perror("Error creating directory");
             return -1;
@@ -35,7 +48,7 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
     } else {
         mode_t mode = (mode_t)strtol(args[1], NULL, 8);
 
-        int fd = openat(dirfd(dir), args[0], O_CREAT | O_WRONLY | O_EXCL, mode);
+        int fd = openat(AT_FDCWD, args[0], O_CREAT | O_WRONLY | O_EXCL, mode);
         if (fd == -1) {
             send_string(client_socket, "err-Error creating file");
             perror("Error creating file");
@@ -72,12 +85,89 @@ int op_download(int client_socket, int id, DIR *dir, char *args[], int arg_count
 }
 
 int op_cd(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("cd\n");
+    (void)dir;
+    if (arg_count < 1) {
+        send_string(client_socket, "err-Usage: cd <path>");
+        return -1;
+    }
+
+    char *path = args[0];
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        perror("getcwd failed");
+        send_string(client_socket, "err-Internal server error");
+        return -1;
+    }
+
+    // Get username for home directory check
+    char username[USERNAME_LENGTH];
+    if (get_username_by_id(id, username) != 0) {
+        send_string(client_socket, "err-Internal server error");
+        return -1;
+    }
+    char home_dir[1024];
+    snprintf(home_dir, sizeof(home_dir), "/%s", username);
+
+    // Resolve path
+    // If absolute, must start with /username
+    if (path[0] == '/') {
+        if (strncmp(path, home_dir, strlen(home_dir)) != 0) {
+            send_string(client_socket, "err-Access denied: Cannot go outside home directory");
+            return -1;
+        }
+    }
+
+    if (chdir(path) != 0) {
+        perror("chdir failed");
+        send_string(client_socket, "err-Invalid path");
+        return -1;
+    }
+
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        perror("getcwd failed");
+        send_string(client_socket, "err-Internal server error");
+        return -1;
+    }
+
+    // Verify we are still inside home_dir
+    if (strncmp(cwd, home_dir, strlen(home_dir)) != 0) {
+        // Revert
+        chdir(home_dir);
+        send_string(client_socket, "err-Access denied: Cannot go outside home directory");
+        return -1;
+    }
+    
+    send_string(client_socket, "ok-Changed directory");
     return 0;
 }
 
 int op_list(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("list\n");
+    (void)id; (void)dir;
+    char *path = ".";
+    if (arg_count > 0) {
+        path = args[0];
+    }
+
+    DIR *d = opendir(path);
+    if (d == NULL) {
+        perror("opendir failed");
+        send_string(client_socket, "err-Error opening directory");
+        return -1;
+    }
+
+    struct dirent *entry;
+    char buffer[4096] = "";
+    while ((entry = readdir(d)) != NULL) {
+        strncat(buffer, entry->d_name, sizeof(buffer) - strlen(buffer) - 1);
+        strncat(buffer, "\n", sizeof(buffer) - strlen(buffer) - 1);
+    }
+    closedir(d);
+
+    // Send the list (could be large, but send_string handles it as one block)
+    // Ideally we should send line by line or use a better protocol, but for now:
+    char msg[4100];
+    snprintf(msg, sizeof(msg), "ok-\n%s", buffer);
+    send_string(client_socket, msg);
     return 0;
 }
 

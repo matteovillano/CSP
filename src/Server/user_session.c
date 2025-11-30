@@ -19,7 +19,27 @@ int user_session(int client_socket, int id, const char *root_dir) {
         return -1;
     }
 
-    restore_privileges(); // Ensure we are root to change UID
+    restore_privileges(); // Ensure we are root to change UID and chroot
+
+    // Chroot to root_dir
+    if (chroot(root_dir) != 0) {
+        perror("chroot failed");
+        return -1;
+    }
+    if (chdir("/") != 0) {
+        perror("chdir / failed");
+        return -1;
+    }
+
+    // Change to user's home directory (relative to new root)
+    if (chdir(username) != 0) {
+        perror("chdir username failed");
+        // If it fails, maybe try to create it? Or just fail.
+        // For now, let's assume it exists as per server_main logic or create_user logic.
+        // But wait, create_user creates it.
+        return -1;
+    }
+
     if (setgid(pwd->pw_gid) != 0) {
         perror("setgid failed");
         return -1;
@@ -31,13 +51,11 @@ int user_session(int client_socket, int id, const char *root_dir) {
     printf("Process identity switched to UID: %d, GID: %d\n", pwd->pw_uid, pwd->pw_gid);
     minimize_privileges();
     
-    char path[256];
-    snprintf(path, sizeof(path), "%s/%s", root_dir, username);
-
+    // Open current directory (which is now the user's home)
     DIR *dir;
-    dir = opendir(path);
+    dir = opendir(".");
     if (dir == NULL) {
-        printf("Error opening directory %s\n", path);
+        printf("Error opening directory .\n");
         return -1;
     }
     printf("Directory opened successfully\n");
