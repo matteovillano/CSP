@@ -96,21 +96,33 @@ int client_session(char *buffer, int client_socket) {
         // send command to server
         if (fgets(buffer, 256, stdin) == NULL)
             continue;
-        else
-            if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0) {
-                printf("error sending the message. Retry\n>");
-                continue;
-            }
+
+        if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0) {
+            printf("error sending the message. Retry\n>");
+            continue;
+        }
         
         // receive response from server
         memset(buffer, 0, 256);
         int bytes_received = recv_all(client_socket, buffer, 255);
 
+        if (!strcmp(buffer, "ok-write")) {
+            printf("----Write content (max 4095 bytes)----\n");
+            char content[4096];
+            if (fgets(content, 4096, stdin) == NULL)
+                continue;
+            send_string(client_socket, content);
+        }
+
+        // receive response from server
+        memset(buffer, 0, 256);
+        bytes_received = recv_all(client_socket, buffer, 255);
+
         printf("%s\n", buffer);
         
         // manage responses
         if (bytes_received > 0) {
-            if (strcmp(buffer, "exit") == 0){
+            if (!strcmp(buffer, "exit")){
                 send_string(client_socket, "exit");
                 return 0;
             }

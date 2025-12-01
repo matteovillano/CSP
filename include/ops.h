@@ -2,7 +2,7 @@
 #define OPS_H
 
 #include <dirent.h>
-#include <libgen.h>
+#include <libgen.h> // we can't use it
 #include <limits.h>
 #include <fcntl.h>
 #include <stdio.h>

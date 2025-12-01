@@ -349,9 +349,77 @@ int op_read(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
 }
 
 int op_write(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("write\n");
+    (void)dir;
+    char msg[256];
+    char file_path[256];
+    int offset = 0;
+
+    if (arg_count < 1) {
+        send_string(client_socket, "err-Usage: write [-offset=<num>] <path>");
+        return -1;
+    }
+
+    // Parse arguments
+    if (strncmp(args[0], "-offset=", 8) == 0) {
+        if (arg_count < 2) {
+            send_string(client_socket, "err-Usage: write [-offset=<num>] <path>");
+            return -1;
+        }
+        offset = atoi(args[0] + 8);
+        strncpy(file_path, args[1], sizeof(file_path) - 1);
+        file_path[sizeof(file_path) - 1] = '\0';
+    } else {
+        strncpy(file_path, args[0], sizeof(file_path) - 1);
+        file_path[sizeof(file_path) - 1] = '\0';
+    }
+
+    // Validate path
+    if (check_path(client_socket, id, file_path) != 0) {
+        return -1;
+    }
+
+    // Open file (create if not exists, 0700)
+    int fd = openat(AT_FDCWD, file_path, O_WRONLY | O_CREAT, 0700);
+    if (fd == -1) {
+        perror("open failed");
+        send_string(client_socket, "err-Error opening/creating file");
+        return -1;
+    }
+
+    // Seek
+    if (offset > 0) {
+        if (lseek(fd, offset, SEEK_SET) == -1) {
+            perror("lseek failed");
+            close(fd);
+            send_string(client_socket, "err-Error seeking file");
+            return -1;
+        }
+    }
+
+    send_string(client_socket, "ok-write");
+
+    // Receive content
+    char content[4096];
+    int bytes_received = recv_all(client_socket, content, sizeof(content) - 1);
+    if (bytes_received < 0) {
+        close(fd);
+        return -1; // recv_all handles error reporting
+    }
+    content[bytes_received] = '\0';
+    
+    if (write(fd, content, bytes_received - 1) == -1) {
+        perror("write failed");
+        close(fd);
+        send_string(client_socket, "err-Error writing to file");
+        return -1;
+    }
+
+    close(fd);
+    snprintf(msg, sizeof(msg), "ok-Wrote to %s.", file_path);
+    send_string(client_socket, msg);
     return 0;
 }
+
 int op_del(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     (void)dir;
     char msg[256];
