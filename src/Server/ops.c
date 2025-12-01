@@ -125,7 +125,6 @@ int op_changemod(int client_socket, int id, DIR *dir, char *args[], int arg_coun
 
     mode_t mode = (mode_t)strtol(args[1], NULL, 8);
     char *path_copy2 = strdup(args[0]);
-    char *base_name = basename(path_copy2);
  
     if (fchmodat(AT_FDCWD, args[0], mode, 0) == -1) {
         perror("chmod failed");
@@ -268,7 +267,84 @@ int op_list(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
 }
 
 int op_read(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("read\n");
+    (void)dir;
+    char file_path[256];
+    int offset = 0;
+    
+    if (arg_count < 1) {
+        send_string(client_socket, "err-Usage: read [-offset=<num>] <path>");
+        return -1;
+    }
+    
+    // Parse arguments
+    if (strncmp(args[0], "-offset=", 8) == 0) {
+        if (arg_count < 2) {
+            send_string(client_socket, "err-Usage: read [-offset=<num>] <path>");
+            return -1;
+        }
+        offset = atoi(args[0] + 8);
+        strncpy(file_path, args[1], sizeof(file_path) - 1);
+        file_path[sizeof(file_path) - 1] = '\0';
+    } else {
+        strncpy(file_path, args[0], sizeof(file_path) - 1);
+        file_path[sizeof(file_path) - 1] = '\0';
+    }
+    
+    // Validate path
+    if (check_path(client_socket, id, file_path) != 0) {
+        return -1;
+    }
+    
+    // Open file
+    int fd = openat(AT_FDCWD, file_path, O_RDONLY);
+    if (fd == -1) {
+        perror("open failed");
+        send_string(client_socket, "err-Error opening file");
+        return -1;
+    }
+
+    // control the file length
+    int file_length = lseek(fd, 0, SEEK_END);
+    if (file_length == -1) {
+        perror("lseek failed");
+        close(fd);
+        send_string(client_socket, "err-Error getting file length");
+        return -1;
+    }
+    
+    // Seek to the offset
+    if (offset > 0) {
+        if (lseek(fd, offset, SEEK_SET) == -1) {
+            perror("lseek failed");
+            close(fd);
+            send_string(client_socket, "err-Error seeking file");
+            return -1;
+        }
+    } else {
+        if (lseek(fd, 0, SEEK_SET) == -1) {
+            perror("lseek failed");
+            close(fd);
+            send_string(client_socket, "err-Error seeking file");
+            return -1;
+        }
+    }
+    
+    // Read content
+    char content[file_length + 1];
+    ssize_t bytes_read = read(fd, content, file_length);
+    close(fd);
+    
+    if (bytes_read == -1) {
+        perror("read failed");
+        send_string(client_socket, "err-Error reading file");
+        return -1;
+    }
+    
+    content[bytes_read] = '\0';
+    
+    // Send content
+    send_string(client_socket, content);
+    
     return 0;
 }
 

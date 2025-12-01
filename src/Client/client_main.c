@@ -67,7 +67,7 @@ int create_and_login_user(char *buffer, int client_socket) {
                 continue;
             }
 
-            if (strcmp(buffer, "login") > 0) {
+            if (strncmp(buffer, "login", 5) == 0) {
                 strncpy(current_user, buffer + 6, strlen(buffer) - 6);
                 current_user[strlen(current_user)-1] = '\0';
             }
