@@ -2,11 +2,11 @@
 #include "../../include/utils.h"
 #include "../../include/users.h"
 
-void check_path(int client_socket, int id, char *path) {
+int check_path(int client_socket, int id, char *path) {
     char *path_copy = strdup(path);
     if (!path_copy) {
         send_string(client_socket, "err-Internal server error");
-        return;
+        return -1;
     }
     
     // Get parent directory
@@ -17,7 +17,7 @@ void check_path(int client_socket, int id, char *path) {
     if (realpath(parent, resolved_parent) == NULL) {
         free(path_copy);
         send_string(client_socket, "err-Invalid path: Parent directory does not exist");
-        return;
+        return -1;
     }
     free(path_copy);
 
@@ -25,16 +25,17 @@ void check_path(int client_socket, int id, char *path) {
     char username[USERNAME_LENGTH];
     if (get_username_by_id(id, username) != 0) {
         send_string(client_socket, "err-Internal server error");
-        return;
+        return -1;
     }
     char home_dir[PATH_MAX];
     snprintf(home_dir, sizeof(home_dir), "/%s", username);
 
     // Check if resolved parent is within home directory
     if (strncmp(resolved_parent, home_dir, strlen(home_dir)) != 0) {
-        send_string(client_socket, "err-Access denied: Cannot create outside home directory");
-        return;
+        send_string(client_socket, "err-Access denied: Cannot access outside home directory");
+        return -1;
     }
+    return 0;
 }
 
 int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
@@ -51,7 +52,9 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
     char *target_path = (strcmp(args[0], "-d") == 0) ? args[1] : args[0];
     
     // Validate path
-    check_path(client_socket, id, target_path);
+    if (check_path(client_socket, id, target_path) != 0) {
+        return -1;
+    }
 
     if (strcmp(args[0], "-d") == 0) {
         if (arg_count < 3) {
@@ -114,7 +117,9 @@ int op_changemod(int client_socket, int id, DIR *dir, char *args[], int arg_coun
         return -1;
     }
 
-    check_path(client_socket, id, args[0]);
+    if (check_path(client_socket, id, args[0]) != 0) {
+        return -1;
+    }
 
     close(home_fd);
 
@@ -137,7 +142,32 @@ int op_changemod(int client_socket, int id, DIR *dir, char *args[], int arg_coun
 }
 
 int op_move(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("move\n");
+    (void)dir;
+    char msg[256];
+
+    if (arg_count < 2) {
+        send_string(client_socket, "err-Usage: move <source> <destination>");
+        return -1;
+    }
+
+    // Validate source path
+    if (check_path(client_socket, id, args[0]) != 0) {
+        return -1;
+    }
+
+    // Validate destination path
+    if (check_path(client_socket, id, args[1]) != 0) {
+        return -1;
+    }
+
+    if (rename(args[0], args[1]) == -1) {
+        perror("rename failed");
+        send_string(client_socket, "err-Error moving file");
+        return -1;
+    }
+
+    snprintf(msg, sizeof(msg), "ok-Moved %s to %s.", args[0], args[1]);
+    send_string(client_socket, msg);
     return 0;
 }
 
