@@ -277,6 +277,26 @@ int op_write(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     return 0;
 }
 int op_del(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("del\n");
+    (void)dir;
+    char msg[256];
+
+    if (arg_count < 1) {
+        send_string(client_socket, "err-Usage: delete <path>");
+        return -1;
+    }
+
+    // Validate path
+    if (check_path(client_socket, id, args[0]) != 0) {
+        return -1;
+    }
+
+    if (unlink(args[0]) == -1) {
+        perror("unlink failed");
+        send_string(client_socket, "err-Error deleting file");
+        return -1;
+    }
+
+    snprintf(msg, sizeof(msg), "ok-Deleted %s.", args[0]);
+    send_string(client_socket, msg);
     return 0;
 }
