@@ -10,6 +10,7 @@
 #include "../../include/network.h"
 #include "../../include/utils.h"
 #include "../../include/user_session.h"
+#include "concurrency.h"
 
 int server_socket = -1;
 
@@ -32,6 +33,7 @@ int main(int argc, char *argv[]) {
     if (argc >= 4) port = atoi(argv[3]);
 
     // Initialize and drop privileges
+    init_shared_memory();
     init_privileges();
     minimize_privileges();
 

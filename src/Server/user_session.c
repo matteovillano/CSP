@@ -72,8 +72,9 @@ int user_session(int client_socket, int id, const char *root_dir) {
         int arg_count = 0;
 
         // receive command from client
-        int bytes_received = recv_all(client_socket, input, sizeof(input) - 1);
-
+        if (recv_all(client_socket, input, sizeof(input) - 1) <= 0)
+            continue;
+        
         // Remove trailing newline
         input[strcspn(input, "\n")] = 0;
 
@@ -107,12 +108,14 @@ int user_session(int client_socket, int id, const char *root_dir) {
         if (strcmp(command, "move") == 0) {
             op_move(client_socket, id, dir, &args[1], arg_count);
         }
+        /*
         if (strcmp(command, "upload") == 0) {
             op_upload(client_socket, id, dir, &args[1], arg_count);
         }
         if (strcmp(command, "download") == 0) {
             op_download(client_socket, id, dir, &args[1], arg_count);
         }
+        */
         if (strcmp(command, "cd") == 0) {
             op_cd(client_socket, id, dir, &args[1], arg_count);
         }
