@@ -2,6 +2,41 @@
 #include "../../include/utils.h"
 #include "../../include/users.h"
 
+void check_path(int client_socket, int id, char *path) {
+    char *path_copy = strdup(path);
+    if (!path_copy) {
+        send_string(client_socket, "err-Internal server error");
+        return;
+    }
+    
+    // Get parent directory
+    char *parent = dirname(path_copy);
+    char resolved_parent[PATH_MAX];
+    
+    // Resolve parent directory
+    if (realpath(parent, resolved_parent) == NULL) {
+        free(path_copy);
+        send_string(client_socket, "err-Invalid path: Parent directory does not exist");
+        return;
+    }
+    free(path_copy);
+
+    // Get user home directory
+    char username[USERNAME_LENGTH];
+    if (get_username_by_id(id, username) != 0) {
+        send_string(client_socket, "err-Internal server error");
+        return;
+    }
+    char home_dir[PATH_MAX];
+    snprintf(home_dir, sizeof(home_dir), "/%s", username);
+
+    // Check if resolved parent is within home directory
+    if (strncmp(resolved_parent, home_dir, strlen(home_dir)) != 0) {
+        send_string(client_socket, "err-Access denied: Cannot create outside home directory");
+        return;
+    }
+}
+
 int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     (void)dir;
     char msg[256];
@@ -16,38 +51,7 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
     char *target_path = (strcmp(args[0], "-d") == 0) ? args[1] : args[0];
     
     // Validate path
-    char *path_copy = strdup(target_path);
-    if (!path_copy) {
-        send_string(client_socket, "err-Internal server error");
-        return -1;
-    }
-    
-    // Get parent directory
-    char *parent = dirname(path_copy);
-    char resolved_parent[PATH_MAX];
-    
-    // Resolve parent directory
-    if (realpath(parent, resolved_parent) == NULL) {
-        free(path_copy);
-        send_string(client_socket, "err-Invalid path: Parent directory does not exist");
-        return -1;
-    }
-    free(path_copy);
-
-    // Get user home directory
-    char username[USERNAME_LENGTH];
-    if (get_username_by_id(id, username) != 0) {
-        send_string(client_socket, "err-Internal server error");
-        return -1;
-    }
-    char home_dir[PATH_MAX];
-    snprintf(home_dir, sizeof(home_dir), "/%s", username);
-
-    // Check if resolved parent is within home directory
-    if (strncmp(resolved_parent, home_dir, strlen(home_dir)) != 0) {
-        send_string(client_socket, "err-Access denied: Cannot create outside home directory");
-        return -1;
-    }
+    check_path(client_socket, id, target_path);
 
     if (strcmp(args[0], "-d") == 0) {
         if (arg_count < 3) {
@@ -86,7 +90,49 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
 }
 
 int op_changemod(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("changemod\n");
+    (void)dir;
+    char msg[256];
+
+    if (arg_count < 2) {
+        send_string(client_socket, "err-Usage: chmod <path> <permissions>");
+        return -1;
+    }
+
+    // Get user home directory
+    char username[USERNAME_LENGTH];
+    if (get_username_by_id(id, username) != 0) {
+        send_string(client_socket, "err-Internal server error");
+        return -1;
+    }
+    char home_dir[PATH_MAX];
+    snprintf(home_dir, sizeof(home_dir), "/%s", username);
+
+    int home_fd = open(home_dir, O_RDONLY | O_DIRECTORY);
+    if (home_fd == -1) {
+        perror("open home failed");
+        send_string(client_socket, "err-Internal server error");
+        return -1;
+    }
+
+    check_path(client_socket, id, args[0]);
+
+    close(home_fd);
+
+    mode_t mode = (mode_t)strtol(args[1], NULL, 8);
+    char *path_copy2 = strdup(args[0]);
+    char *base_name = basename(path_copy2);
+ 
+    if (fchmodat(AT_FDCWD, args[0], mode, 0) == -1) {
+        perror("chmod failed");
+        send_string(client_socket, "err-Error changing permissions");
+        free(path_copy2);
+        return -1;
+    }
+
+    free(path_copy2);
+
+    snprintf(msg, sizeof(msg), "ok-Permissions for %s changed to %o.", args[0], mode);
+    send_string(client_socket, msg);
     return 0;
 }
 
