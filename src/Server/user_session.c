@@ -99,7 +99,6 @@ int user_session(int client_socket, int id, const char *root_dir) {
         printf("Command: %s\n", command);
 
         if (strcmp(command, "create") == 0) {
-            printf("op_create\n");
             op_create(client_socket, id, dir, &args[1], arg_count);
         }
         if (strcmp(command, "chmod") == 0) {

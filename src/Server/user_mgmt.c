@@ -62,6 +62,8 @@ int handle_client(int client_socket, const char *root_dir) {
                 } else {
                     send_string(client_socket, "err-login");
                 }
+            } else {
+                send_string(client_socket, "err-invalid");
             }
         }else {
             send_string(client_socket, "err-invalid");

@@ -1,15 +1,9 @@
 #include "../../include/ops.h"
 #include "../../include/utils.h"
 #include "../../include/users.h"
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    (void)id; (void)dir;
+    (void)dir;
     char msg[256];
     
     if (arg_count < 2) {
@@ -18,12 +12,39 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
         return -1;
     }
 
-    // Check if path is absolute or tries to go up
-    if (args[1][0] == '/' || strstr(args[1], "..")) {
-        send_string(client_socket, "err-Access denied: Cannot create outside home directory");
+    // Identify target path
+    char *target_path = (strcmp(args[0], "-d") == 0) ? args[1] : args[0];
+    
+    // Validate path
+    char *path_copy = strdup(target_path);
+    if (!path_copy) {
+        send_string(client_socket, "err-Internal server error");
         return -1;
     }
-    if (strcmp(args[0], "-d") != 0 && (args[0][0] == '/' || strstr(args[0], ".."))) {
+    
+    // Get parent directory
+    char *parent = dirname(path_copy);
+    char resolved_parent[PATH_MAX];
+    
+    // Resolve parent directory
+    if (realpath(parent, resolved_parent) == NULL) {
+        free(path_copy);
+        send_string(client_socket, "err-Invalid path: Parent directory does not exist");
+        return -1;
+    }
+    free(path_copy);
+
+    // Get user home directory
+    char username[USERNAME_LENGTH];
+    if (get_username_by_id(id, username) != 0) {
+        send_string(client_socket, "err-Internal server error");
+        return -1;
+    }
+    char home_dir[PATH_MAX];
+    snprintf(home_dir, sizeof(home_dir), "/%s", username);
+
+    // Check if resolved parent is within home directory
+    if (strncmp(resolved_parent, home_dir, strlen(home_dir)) != 0) {
         send_string(client_socket, "err-Access denied: Cannot create outside home directory");
         return -1;
     }
@@ -163,10 +184,9 @@ int op_list(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     }
     closedir(d);
 
-    // Send the list (could be large, but send_string handles it as one block)
-    // Ideally we should send line by line or use a better protocol, but for now:
+    // Send the list
     char msg[4100];
-    snprintf(msg, sizeof(msg), "ok-\n%s", buffer);
+    snprintf(msg, sizeof(msg), "%s", buffer);
     send_string(client_socket, msg);
     return 0;
 }

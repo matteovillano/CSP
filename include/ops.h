@@ -2,6 +2,14 @@
 #define OPS_H
 
 #include <dirent.h>
+#include <libgen.h>
+#include <limits.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 int op_create(int client_socket, int id, DIR* dir, char* args[], int arg_count);
 int op_changemod(int client_socket, int id, DIR* dir, char* args[], int arg_count);

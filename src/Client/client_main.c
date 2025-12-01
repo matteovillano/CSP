@@ -57,22 +57,34 @@ int main(int argc, char *argv[]) {
 int create_and_login_user(char *buffer, int client_socket) {
     while (1)
     {
+        memset(buffer, 0, 256);
         // send command to server
         if (fgets(buffer, 256, stdin) == NULL)
             continue;
-        else
+        else {
             if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0) {
                 printf("error sending the message. Retry\n>");
                 continue;
             }
+
+            if (strcmp(buffer, "login") > 0) {
+                strncpy(current_user, buffer + 6, strlen(buffer) - 6);
+                current_user[strlen(current_user)-1] = '\0';
+            }
+        }
         
         // receive response from server
         memset(buffer, 0, 256);
         int bytes_received = recv_all(client_socket, buffer, 255);
-        // manage responses
-        printf("%s\n", buffer);
 
-        printf("> ");
+        // if login is successful, break
+        if (!strcmp(buffer, "ok-login")){
+            printf("%s@server:~$ ", current_user);
+            break;
+        } else if (!strcmp(buffer, "exit")) {
+            return 0;
+        }
+        printf("%s\n> ", buffer);
     }
 
     return 1;
@@ -94,7 +106,7 @@ int client_session(char *buffer, int client_socket) {
         memset(buffer, 0, 256);
         int bytes_received = recv_all(client_socket, buffer, 255);
 
-        printf("Received: %s\n", buffer);
+        printf("%s\n", buffer);
         
         // manage responses
         if (bytes_received > 0) {
@@ -104,7 +116,7 @@ int client_session(char *buffer, int client_socket) {
             }
         }
         
-        printf("> ");
+        printf("%s@server:~$ ", current_user);
 
     }
 
