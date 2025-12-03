@@ -108,14 +108,12 @@ int user_session(int client_socket, int id, const char *root_dir) {
         if (strcmp(command, "move") == 0) {
             op_move(client_socket, id, dir, &args[1], arg_count);
         }
-        /*
         if (strcmp(command, "upload") == 0) {
             op_upload(client_socket, id, dir, &args[1], arg_count);
-        }
+        }/*
         if (strcmp(command, "download") == 0) {
             op_download(client_socket, id, dir, &args[1], arg_count);
-        }
-        */
+        }*/
         if (strcmp(command, "cd") == 0) {
             op_cd(client_socket, id, dir, &args[1], arg_count);
         }
