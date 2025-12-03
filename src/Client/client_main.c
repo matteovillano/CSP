@@ -123,9 +123,7 @@ int client_session(char *buffer, int client_socket) {
                 }
 
                 // Check if local file exists before doing anything
-                char full_path[256];
-                get_full_path(local_path, full_path);
-                if (access(full_path, F_OK) == -1) {
+                if (access(local_path, F_OK) == -1) {
                     printf("Error: Local file '%s' does not exist.\n", local_path);
                     continue;
                 }

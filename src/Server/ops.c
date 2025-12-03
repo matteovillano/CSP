@@ -1,82 +1,11 @@
 #include "../../include/ops.h"
 #include "../../include/utils.h"
 #include "../../include/users.h"
-#include "concurrency.h"
+#include "../../include/concurrency.h"
 #include <libgen.h>
 
-void get_full_path(char *path, char *full_path) {
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        char temp_path[PATH_MAX+1];
-        if (path[0] == '/') {
-            snprintf(temp_path, sizeof(temp_path), "%s", path);
-        } else {
-            snprintf(temp_path, sizeof(temp_path), "%s/%s", cwd, path);
-        }
-        
-        // Try to resolve the full path directly (works if file exists)
-        char *real = realpath(temp_path, NULL);
-        if (real) {
-            strncpy(full_path, real, PATH_MAX - 1);
-            full_path[PATH_MAX - 1] = '\0';
-            free(real);
-        } else {
-            // File might not exist, resolve directory
-            char *path_dup = strdup(temp_path);
-            char *dir = dirname(path_dup);
-            char *path_dup2 = strdup(temp_path);
-            char *base = basename(path_dup2);
-            
-            char *real_dir = realpath(dir, NULL);
-            if (real_dir) {
-                snprintf(full_path, PATH_MAX, "%s/%s", real_dir, base);
-                free(real_dir);
-            } else {
-                // Fallback, just use what we have
-                strncpy(full_path, temp_path, PATH_MAX - 1);
-                full_path[PATH_MAX - 1] = '\0';
-            }
-            free(path_dup);
-            free(path_dup2);
-        }
-    }
-}
-
-int check_path(int client_socket, int id, char *path) {
-    char *path_copy = strdup(path);
-    if (!path_copy) {
-        send_string(client_socket, "err-Internal server error");
-        return -1;
-    }
-    
-    // Get parent directory
-    char *parent = dirname(path_copy);
-    char resolved_parent[PATH_MAX];
-    
-    // Resolve parent directory
-    if (realpath(parent, resolved_parent) == NULL) {
-        free(path_copy);
-        send_string(client_socket, "err-Invalid path: Parent directory does not exist");
-        return -1;
-    }
-    free(path_copy);
-
-    // Get user home directory
-    char username[USERNAME_LENGTH];
-    if (get_username_by_id(id, username) != 0) {
-        send_string(client_socket, "err-Internal server error");
-        return -1;
-    }
-    char home_dir[PATH_MAX];
-    snprintf(home_dir, sizeof(home_dir), "/%s", username);
-
-    // Check if resolved parent is within home directory
-    if (strncmp(resolved_parent, home_dir, strlen(home_dir)) != 0) {
-        send_string(client_socket, "err-Access denied: Cannot access outside home directory");
-        return -1;
-    }
-    return 0;
-}
+void get_full_path(char *path, char *full_path);
+int check_path(int client_socket, int id, char *path);
 
 int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     (void)dir;
@@ -209,12 +138,104 @@ int op_move(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     send_string(client_socket, msg);
     return 0;
 }
-/*
-int op_upload(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("upload\n");
-    return 0;
-}
 
+int op_upload(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
+    (void)dir;
+    char msg[256];
+    char file_path[256];
+    long file_size = 0;
+
+    if (arg_count < 1) {
+        send_string(client_socket, "err-Usage: upload <path>");
+        return -1;
+    }
+
+    strncpy(file_path, args[0], sizeof(file_path) - 1);
+    file_path[sizeof(file_path) - 1] = '\0';
+
+    // Validate path
+    if (check_path(client_socket, id, file_path) != 0) {
+        return -1;
+    }
+
+    char full_path[PATH_MAX];
+    get_full_path(file_path, full_path);
+    FileLock *lock = get_file_lock(full_path);
+    if (!lock) {
+        send_string(client_socket, "err-Server busy (too many locks)");
+        return -1;
+    }
+    writer_lock(lock);
+
+    // Open file for writing (create or truncate)
+    int fd = openat(AT_FDCWD, file_path, O_WRONLY | O_CREAT | O_TRUNC, 0700);
+    if (fd == -1) {
+        perror("open failed");
+        send_string(client_socket, "err-Error opening/creating file");
+        writer_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+
+    // Send ready signal
+    send_string(client_socket, "ok-upload");
+
+    // Receive file size
+    char size_buffer[64];
+    if (recv_all(client_socket, size_buffer, 63) <= 0) {
+        close(fd);
+        writer_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+    file_size = atol(size_buffer);
+    
+    // Send size received confirmation
+    send_string(client_socket, "ok-size");
+
+    // Receive content
+    char *buffer = malloc(4096);
+    if (!buffer) {
+        close(fd);
+        writer_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+
+    long total_received = 0;
+    while (total_received < file_size) {
+        int chunk_size = 4096;
+        if (file_size - total_received < 4096) {
+            chunk_size = file_size - total_received;
+        }
+        
+        int bytes_read = recv(client_socket, buffer, chunk_size, 0);
+        if (bytes_read <= 0) {
+            perror("recv failed during upload");
+            break;
+        }
+        
+        if (write(fd, buffer, bytes_read) != bytes_read) {
+            perror("write failed");
+            break;
+        }
+        total_received += bytes_read;
+    }
+
+    free(buffer);
+    close(fd);
+    writer_unlock(lock);
+    release_file_lock(lock);
+
+    if (total_received == file_size) {
+        snprintf(msg, sizeof(msg), "ok-concluded");
+        send_string(client_socket, msg);
+        return 0;
+    } else {
+        return -1;
+    }
+}
+/*
 int op_download(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     printf("download\n");
     return 0;
@@ -538,5 +559,79 @@ int op_del(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
 
     snprintf(msg, sizeof(msg), "ok-Deleted %s.", args[0]);
     send_string(client_socket, msg);
+    return 0;
+}
+
+void get_full_path(char *path, char *full_path) {
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        char temp_path[PATH_MAX+1];
+        if (path[0] == '/') {
+            snprintf(temp_path, sizeof(temp_path), "%s", path);
+        } else {
+            snprintf(temp_path, sizeof(temp_path), "%s/%s", cwd, path);
+        }
+        
+        // Try to resolve the full path directly (works if file exists)
+        char *real = realpath(temp_path, NULL);
+        if (real) {
+            strncpy(full_path, real, PATH_MAX - 1);
+            full_path[PATH_MAX - 1] = '\0';
+            free(real);
+        } else {
+            // File might not exist, resolve directory
+            char *path_dup = strdup(temp_path);
+            char *dir = dirname(path_dup);
+            char *path_dup2 = strdup(temp_path);
+            char *base = basename(path_dup2);
+            
+            char *real_dir = realpath(dir, NULL);
+            if (real_dir) {
+                snprintf(full_path, PATH_MAX, "%s/%s", real_dir, base);
+                free(real_dir);
+            } else {
+                // Fallback, just use what we have
+                strncpy(full_path, temp_path, PATH_MAX - 1);
+                full_path[PATH_MAX - 1] = '\0';
+            }
+            free(path_dup);
+            free(path_dup2);
+        }
+    }
+}
+
+int check_path(int client_socket, int id, char *path) {
+    char *path_copy = strdup(path);
+    if (!path_copy) {
+        send_string(client_socket, "err-Internal server error");
+        return -1;
+    }
+    
+    // Get parent directory
+    char *parent = dirname(path_copy);
+    char resolved_parent[PATH_MAX];
+    
+    // Resolve parent directory
+    if (realpath(parent, resolved_parent) == NULL) {
+        free(path_copy);
+        send_string(client_socket, "err-Invalid path: Parent directory does not exist");
+        return -1;
+    }
+    free(path_copy);
+
+    // Get user home directory
+    char username[USERNAME_LENGTH];
+    if (get_username_by_id(id, username) != 0) {
+        send_string(client_socket, "err-Internal server error");
+        return -1;
+    }
+    char home_dir[PATH_MAX];
+    snprintf(home_dir, sizeof(home_dir), "/%s", username);
+
+    // Check if resolved parent is within home directory
+    if (strncmp(resolved_parent, home_dir, strlen(home_dir)) != 0) {
+        send_string(client_socket, "err-Access denied: Cannot access outside home directory");
+        return -1;
+    }
     return 0;
 }

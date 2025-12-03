@@ -1,6 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pthread -Iinclude -g
-LDFLAGS = -pthread
+CFLAGS = -Wall -Wextra -Iinclude -g
 
 SRC_DIR = src
 OBJ_DIR = obj
@@ -22,10 +21,10 @@ CLIENT_OBJS = $(patsubst $(SRC_DIR)/Client/%.c, $(OBJ_DIR)/Client/%.o, $(CLIENT_
 all: directories Server Client
 
 Server: $(COMMON_OBJS) $(SERVER_OBJS)
-	$(CC) $(LDFLAGS) -o $(BIN_DIR)/Server $^
+	$(CC) -o $(BIN_DIR)/Server $^
 
 Client: $(COMMON_OBJS) $(CLIENT_OBJS)
-	$(CC) $(LDFLAGS) -o $(BIN_DIR)/Client $^
+	$(CC) -o $(BIN_DIR)/Client $^
 
 OfflineServer: $(COMMON_OBJS) $(SERVER_OBJS)
 	gcc ./src/Server/offline_server.c ./src/Server/user_session.c ./src/Server/users.c ./src/Server/ops.c -o ./bin/offline_server
