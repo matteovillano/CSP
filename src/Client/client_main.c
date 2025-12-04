@@ -93,6 +93,7 @@ int create_and_login_user(char *buffer, int client_socket) {
 
 void upload_client(char* buffer, int client_socket);
 void read_client(char* buffer, int client_socket);
+void download_client(char* buffer, int client_socket);
 
 int client_session(char *buffer, int client_socket) {
     while(1)
@@ -108,6 +109,9 @@ int client_session(char *buffer, int client_socket) {
             continue;
         } else if (strncmp(buffer, "read", 4) == 0) {
             read_client(buffer, client_socket);
+            continue;
+        } else if (strncmp(buffer, "download", 8) == 0) {
+            download_client(buffer, client_socket);
             continue;
         }
 
@@ -143,6 +147,164 @@ int client_session(char *buffer, int client_socket) {
     }
 
     return 1;
+}
+
+void download_client(char* buffer, int client_socket) {
+    char cmd[10], arg1[128], arg2[128], arg3[128];
+    int parsed = sscanf(buffer, "%s %s %s %s", cmd, arg1, arg2, arg3);
+    
+    int background = 0;
+    char *remote_path = NULL;
+    char *local_path = NULL;
+
+    if (parsed >= 3) {
+        if (strcmp(arg1, "-b") == 0) {
+            if (parsed < 4) {
+                printf("Usage: download [-b] <remote_path> <local_path>\n");
+                return;
+            }
+            background = 1;
+            remote_path = arg2;
+            local_path = arg3;
+        } else {
+            remote_path = arg1;
+            local_path = arg2;
+        }
+
+        if (background) {
+            pid_t pid = fork();
+            if (pid == 0) {
+                // Child process
+                int child_socket = create_client_socket(server_ip, server_port);
+                if (child_socket < 0) exit(1);
+
+                // Login
+                char login_cmd[262];
+                snprintf(login_cmd, sizeof(login_cmd), "login %s", current_user);
+                send_string(child_socket, login_cmd);
+                
+                char resp[256];
+                recv_all(child_socket, resp, 255); // consume "ok-login"
+                
+                // Initiate download
+                char download_cmd[512];
+                snprintf(download_cmd, sizeof(download_cmd), "download %s", remote_path);
+                send_string(child_socket, download_cmd);
+                
+                recv_all(child_socket, resp, 255); // consume "ok-download" or error
+                if (strncmp(resp, "ok-download", 11) != 0) {
+                    printf("\n%s\n%s@server:~$ ", resp, current_user);
+                    close(child_socket);
+                    exit(1);
+                }
+
+                // Receive size
+                char size_str[64];
+                recv_all(child_socket, size_str, 63);
+                long fsize = atol(size_str);
+                
+                // Send confirmation
+                send_string(child_socket, "ok-size");
+                
+                // Open local file
+                FILE *f = fopen(local_path, "wb");
+                if (!f) {
+                    close(child_socket);
+                    exit(1);
+                }
+
+                // Receive content
+                char *file_buf = malloc(4096);
+                long total_received = 0;
+                while (total_received < fsize) {
+                    int chunk_size = 4096;
+                    if (fsize - total_received < 4096) {
+                        chunk_size = fsize - total_received;
+                    }
+                    
+                    int bytes_read = recv(child_socket, file_buf, chunk_size, 0);
+                    if (bytes_read <= 0) break;
+                    
+                    fwrite(file_buf, 1, bytes_read, f);
+                    total_received += bytes_read;
+                }
+                
+                free(file_buf);
+                fclose(f);
+
+                recv_all(child_socket, resp, 255); // consume "ok-concluded"
+                sleep(5); // to simulate the background process
+                printf("\n[Background] Command: download %s %s concluded\n%s@server:~$ ", remote_path, local_path, current_user);
+                fflush(stdout);
+                
+                close(child_socket);
+                exit(0);
+            } else {
+                // Parent continues immediately
+                return;
+            }
+        } else {
+            // Foreground download
+            char download_cmd[512];
+            snprintf(download_cmd, sizeof(download_cmd), "download %s", remote_path);
+            if (send_all(client_socket, download_cmd, strlen(download_cmd) + 1) == 0) {
+                printf("error sending the message. Retry\n>");
+                return;
+            }
+            
+            // Wait for ok-download
+            memset(buffer, 0, 256);
+            if (recv_all(client_socket, buffer, 255) <= 0) return;
+            
+            if (strcmp(buffer, "ok-download") == 0) {
+                // Receive size
+                char size_str[64];
+                recv_all(client_socket, size_str, 63);
+                long fsize = atol(size_str);
+                
+                // Send confirmation
+                send_string(client_socket, "ok-size");
+                
+                // Open local file
+                FILE *f = fopen(local_path, "wb");
+                if (!f) {
+                    printf("Error opening local file\n");
+                    return;
+                }
+                
+                // Receive content
+                char *file_buf = malloc(4096);
+                long total_received = 0;
+                while (total_received < fsize) {
+                    int chunk_size = 4096;
+                    if (fsize - total_received < 4096) {
+                        chunk_size = fsize - total_received;
+                    }
+                    
+                    int bytes_read = recv(client_socket, file_buf, chunk_size, 0);
+                    if (bytes_read <= 0) break;
+                    
+                    fwrite(file_buf, 1, bytes_read, f);
+                    total_received += bytes_read;
+                }
+                
+                free(file_buf);
+                fclose(f);
+                
+                // Wait for ok-concluded
+                memset(buffer, 0, 256);
+                recv_all(client_socket, buffer, 255);
+                printf("%s\n", buffer);
+            } else {
+                printf("%s\n", buffer);
+            }
+            
+            return;
+        }
+    } else {
+        printf("Usage: download [-b] <remote_path> <local_path>\n");
+        return;
+    }
 }
 
 void upload_client(char* buffer, int client_socket) {
@@ -195,6 +357,7 @@ void upload_client(char* buffer, int client_socket) {
                 
                 recv_all(child_socket, resp, 255); // consume "ok-upload" or error
                 if (strncmp(resp, "ok-upload", 9) != 0) {
+                    printf("\n%s\n%s@server:~$ ", resp, current_user);
                     close(child_socket);
                     exit(1);
                 }
@@ -229,7 +392,7 @@ void upload_client(char* buffer, int client_socket) {
 
                 recv_all(child_socket, resp, 255); // consume "ok-concluded"
 
-                //sleep(5);
+                sleep(5); // to simulate the background process
                 printf("\n[Background] Command: upload %s %s concluded\n%s@server:~$ ", remote_path, local_path, current_user);
                 fflush(stdout);
                 

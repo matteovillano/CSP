@@ -63,6 +63,8 @@ void init_privileges() {
 }
 
 void minimize_privileges() {
+    if (!privileges_initialized) return;
+
     if (seteuid(real_uid) != 0) {
         perror("seteuid failed");
     }

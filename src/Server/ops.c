@@ -154,6 +154,7 @@ int op_upload(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
 
     // Validate path
     if (check_path(client_socket, id, file_path) != 0) {
+        send_string(client_socket, "err-Invalid path");
         return -1;
     }
 
@@ -233,12 +234,113 @@ int op_upload(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
         return -1;
     }
 }
-/*
+
 int op_download(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    printf("download\n");
+    (void)dir;
+    char file_path[256];
+    struct stat file_stat;
+
+    if (arg_count < 1) {
+        send_string(client_socket, "err-Usage: download <path>");
+        return -1;
+    }
+
+    strncpy(file_path, args[0], sizeof(file_path) - 1);
+    file_path[sizeof(file_path) - 1] = '\0';
+
+    // Validate path
+    if (check_path(client_socket, id, file_path) != 0) {
+        send_string(client_socket, "err-Invalid path");
+        return -1;
+    }
+
+    char full_path[PATH_MAX];
+    get_full_path(file_path, full_path);
+    
+    FileLock *lock = get_file_lock(full_path);
+    if (!lock) {
+        send_string(client_socket, "err-Server busy (too many locks)");
+        return -1;
+    }
+    reader_lock(lock);
+
+    // Check if file exists and get info
+    if (stat(file_path, &file_stat) == -1) {
+        perror("stat failed");
+        send_string(client_socket, "err-File not found");
+        reader_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+
+    if (!S_ISREG(file_stat.st_mode)) {
+        send_string(client_socket, "err-Not a regular file");
+        reader_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+
+    int fd = openat(AT_FDCWD, file_path, O_RDONLY);
+    if (fd == -1) {
+        perror("open failed");
+        send_string(client_socket, "err-Error opening file");
+        reader_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+
+    // Send ready signal
+    send_string(client_socket, "ok-download");
+
+    // Send file size
+    char size_str[64];
+    snprintf(size_str, sizeof(size_str), "%ld", file_stat.st_size);
+    send_string(client_socket, size_str);
+
+    // Wait for client confirmation
+    char buffer[256];
+    if (recv_all(client_socket, buffer, 255) <= 0) {
+        close(fd);
+        reader_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+    
+    if (strcmp(buffer, "ok-size") != 0) {
+        close(fd);
+        reader_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+
+    // Send content
+    char *file_buf = malloc(4096);
+    if (!file_buf) {
+        close(fd);
+        reader_unlock(lock);
+        release_file_lock(lock);
+        return -1;
+    }
+
+    ssize_t bytes_read;
+    while ((bytes_read = read(fd, file_buf, 4096)) > 0) {
+        if (send_all(client_socket, file_buf, bytes_read) != bytes_read) {
+            perror("send failed");
+            break;
+        }
+    }
+
+    free(file_buf);
+    close(fd);
+    reader_unlock(lock);
+    release_file_lock(lock);
+
+    // Send conclusion message
+    send_string(client_socket, "ok-concluded");
+    
     return 0;
 }
-*/
+
 int op_cd(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     (void)dir;
     if (arg_count < 1) {
@@ -611,7 +713,7 @@ void get_full_path(char *path, char *full_path) {
     }
 }
 
-int check_path(int client_socket, int id, char *path) {
+int check_path(int client_socket, int id, char *path) {    
     char *path_copy = strdup(path);
     if (!path_copy) {
         send_string(client_socket, "err-Internal server error");
@@ -645,4 +747,5 @@ int check_path(int client_socket, int id, char *path) {
         return -1;
     }
     return 0;
+    
 }

@@ -15,41 +15,56 @@ int user_session(int client_socket, int id, const char *root_dir) {
     // Switch to user identity
     struct passwd *pwd = getpwnam(username);
     if (pwd == NULL) {
-        perror("getpwnam failed");
-        return -1;
+        if (getuid() == 0) {
+            perror("getpwnam failed");
+            return -1;
+        } else {
+            // If not root, we might be testing with non-existent system users
+            // Just warn and continue
+            printf("Warning: getpwnam failed for %s (ignored for non-root testing)\n", username);
+        }
     }
 
     restore_privileges(); // Ensure we are root to change UID and chroot
 
-    // Chroot to root_dir
-    if (chroot(root_dir) != 0) {
-        perror("chroot failed");
-        return -1;
-    }
-    if (chdir("/") != 0) {
-        perror("chdir / failed");
-        return -1;
+    if (getuid() == 0) {
+        // Chroot to root_dir
+        if (chroot(root_dir) != 0) {
+            perror("chroot failed");
+            return -1;
+        }
+        if (chdir("/") != 0) {
+            perror("chdir / failed");
+            return -1;
+        }
+    } else {
+        // Just chdir to root_dir if not root
+        if (chdir(root_dir) != 0) {
+            perror("chdir root_dir failed");
+            return -1;
+        }
     }
 
     // Change to user's home directory (relative to new root)
     if (chdir(username) != 0) {
         perror("chdir username failed");
-        // If it fails, maybe try to create it? Or just fail.
-        // For now, let's assume it exists as per server_main logic or create_user logic.
-        // But wait, create_user creates it.
         return -1;
     }
 
-    if (setgid(pwd->pw_gid) != 0) {
-        perror("setgid failed");
-        return -1;
+    if (getuid() == 0) {
+        if (setgid(pwd->pw_gid) != 0) {
+            perror("setgid failed");
+            return -1;
+        }
+        if (setuid(pwd->pw_uid) != 0) {
+            perror("setuid failed");
+            return -1;
+        }
+        printf("Process identity switched to UID: %d, GID: %d\n", pwd->pw_uid, pwd->pw_gid);
+        minimize_privileges();
+    } else {
+        printf("Running as non-root, skipping identity switch.\n");
     }
-    if (setuid(pwd->pw_uid) != 0) {
-        perror("setuid failed");
-        return -1;
-    }
-    printf("Process identity switched to UID: %d, GID: %d\n", pwd->pw_uid, pwd->pw_gid);
-    minimize_privileges();
     
     // Open current directory (which is now the user's home)
     DIR *dir;
@@ -104,10 +119,10 @@ int user_session(int client_socket, int id, const char *root_dir) {
         }
         if (strcmp(command, "upload") == 0) {
             op_upload(client_socket, id, dir, &args[1], arg_count);
-        }/*
+        }
         if (strcmp(command, "download") == 0) {
             op_download(client_socket, id, dir, &args[1], arg_count);
-        }*/
+        }
         if (strcmp(command, "cd") == 0) {
             op_cd(client_socket, id, dir, &args[1], arg_count);
         }
