@@ -91,7 +91,8 @@ int create_and_login_user(char *buffer, int client_socket) {
     return 1;
 }
 
-void upload(char* buffer, int client_socket);
+void upload_client(char* buffer, int client_socket);
+void read_client(char* buffer, int client_socket);
 
 int client_session(char *buffer, int client_socket) {
     while(1)
@@ -103,7 +104,10 @@ int client_session(char *buffer, int client_socket) {
 
         // Intercept upload command
         if (strncmp(buffer, "upload", 6) == 0) {
-            upload(buffer, client_socket);
+            upload_client(buffer, client_socket);
+            continue;
+        } else if (strncmp(buffer, "read", 4) == 0) {
+            read_client(buffer, client_socket);
             continue;
         }
 
@@ -141,7 +145,7 @@ int client_session(char *buffer, int client_socket) {
     return 1;
 }
 
-void upload(char* buffer, int client_socket) {
+void upload_client(char* buffer, int client_socket) {
     char cmd[10], arg1[128], arg2[128], arg3[128];
     int parsed = sscanf(buffer, "%s %s %s %s", cmd, arg1, arg2, arg3);
     
@@ -300,4 +304,32 @@ void upload(char* buffer, int client_socket) {
         printf("Usage: upload [-b] <local_path> <remote_path>\n");
         return;
     }
+}
+
+void read_client(char* buffer, int client_socket) {
+    if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0) {
+        printf("error sending the message. Retry\n>");
+        return;
+    }
+
+    // receive response from server
+    memset(buffer, 0, 256);
+
+    char size[32];
+    recv_all(client_socket, size, sizeof(size));
+    int file_length = atoi(size);
+
+    send_string(client_socket, "ok-size");
+
+    char resp[4096];
+    while (file_length > 0) {
+        int n = recv_all(client_socket, resp, sizeof(resp));
+        if (strncmp(resp, "err", 3) == 0 || strncmp(resp, "ok-concluded", 12) == 0) {
+            break;
+        }
+        printf("%s\n", resp);
+        memset(resp, 0, sizeof(resp));
+        file_length -= n;
+    }
+    printf("%s\n", resp);
 }

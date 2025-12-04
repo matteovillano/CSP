@@ -327,6 +327,7 @@ int op_list(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
 
 int op_read(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     (void)dir;
+    char msg[256];
     char file_path[256];
     int offset = 0;
     
@@ -404,6 +405,12 @@ int op_read(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
             return -1;
         }
     }
+
+    char size[32];
+    snprintf(size, sizeof(size), "%d", file_length);
+    send_string(client_socket, size);
+
+    recv_all(client_socket, msg, sizeof(msg)); // consume ok-size
     
     // Read content
     char content[4096];
@@ -419,17 +426,18 @@ int op_read(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
             release_file_lock(lock);
             return -1;
         }
+        content[bytes_read] = '\0';
+        send_string(client_socket, content);
         file_length -= bytes_read;
+        printf("%d bytes left\n", file_length);
     }
+
+    printf("File read\n");
+    send_string(client_socket, "ok-concluded");
 
     close(fd);
     reader_unlock(lock);
     release_file_lock(lock);
-    
-    content[bytes_read] = '\0';
-    
-    // Send content
-    send_string(client_socket, content);
     
     return 0;
 }
