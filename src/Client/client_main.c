@@ -91,6 +91,8 @@ int create_and_login_user(char *buffer, int client_socket) {
     return 1;
 }
 
+void upload(char* buffer, int client_socket);
+
 int client_session(char *buffer, int client_socket) {
     while(1)
     {
@@ -101,156 +103,8 @@ int client_session(char *buffer, int client_socket) {
 
         // Intercept upload command
         if (strncmp(buffer, "upload", 6) == 0) {
-            char cmd[10], arg1[128], arg2[128], arg3[128];
-            int parsed = sscanf(buffer, "%s %s %s %s", cmd, arg1, arg2, arg3);
-            
-            int background = 0;
-            char *local_path = NULL;
-            char *remote_path = NULL;
-
-            if (parsed >= 3) {
-                if (strcmp(arg1, "-b") == 0) {
-                    if (parsed < 4) {
-                        printf("Usage: upload [-b] <local_path> <remote_path>\n");
-                        continue;
-                    }
-                    background = 1;
-                    local_path = arg2;
-                    remote_path = arg3;
-                } else {
-                    local_path = arg1;
-                    remote_path = arg2;
-                }
-
-                // Check if local file exists before doing anything
-                if (access(local_path, F_OK) == -1) {
-                    printf("Error: Local file '%s' does not exist.\n", local_path);
-                    continue;
-                }
-
-                if (background) {
-                    pid_t pid = fork();
-                    if (pid == 0) {
-                        // Child process
-                        int child_socket = create_client_socket(server_ip, server_port);
-                        if (child_socket < 0) exit(1);
-
-                        // Login
-                        char login_cmd[262];
-                        snprintf(login_cmd, sizeof(login_cmd), "login %s", current_user);
-                        send_string(child_socket, login_cmd);
-                        
-                        char resp[256];
-                        recv_all(child_socket, resp, 255); // consume "ok-login"
-                        
-                        // Initiate upload
-                        char upload_cmd[512];
-                        snprintf(upload_cmd, sizeof(upload_cmd), "upload %s", remote_path);
-                        send_string(child_socket, upload_cmd);
-                        
-                        recv_all(child_socket, resp, 255); // consume "ok-upload" or error
-                        if (strncmp(resp, "ok-upload", 9) != 0) {
-                            close(child_socket);
-                            exit(1);
-                        }
-
-                        // Open local file
-                        FILE *f = fopen(local_path, "rb");
-                        if (!f) {
-                            close(child_socket);
-                            exit(1);
-                        }
-                        
-                        fseek(f, 0, SEEK_END);
-                        long fsize = ftell(f);
-                        fseek(f, 0, SEEK_SET);
-                        
-                        // Send size
-                        char size_str[64];
-                        snprintf(size_str, sizeof(size_str), "%ld", fsize);
-                        send_string(child_socket, size_str);
-                        
-                        recv_all(child_socket, resp, 255); // consume "ok-size"
-
-                        // Send content
-                        char *file_buf = malloc(4096);
-                        size_t n;
-                        while ((n = fread(file_buf, 1, 4096, f)) > 0) {
-                            send(child_socket, file_buf, n, 0);
-                        }
-                        free(file_buf);
-                        fclose(f);
-                        
-                        recv_all(child_socket, resp, 255); // consume "ok-concluded"
-                        
-                        printf("\n[Background] Command: upload %s %s concluded\n> ", remote_path, local_path);
-                        fflush(stdout);
-                        close(child_socket);
-                        exit(0);
-                    } else {
-                        // Parent continues immediately
-                        continue;
-                    }
-                } else {
-                    // Foreground upload
-                    // Send command to server
-                    char upload_cmd[512];
-                    snprintf(upload_cmd, sizeof(upload_cmd), "upload %s", remote_path);
-                    if (send_all(client_socket, upload_cmd, strlen(upload_cmd) + 1) == 0) {
-                        printf("error sending the message. Retry\n>");
-                        continue;
-                    }
-                    
-                    // Wait for ok-upload
-                    memset(buffer, 0, 256);
-                    if (recv_all(client_socket, buffer, 255) <= 0) continue;
-                    
-                    if (strcmp(buffer, "ok-upload") == 0) {
-                        // Open local file
-                        FILE *f = fopen(local_path, "rb");
-                        if (!f) {
-                            printf("Error opening local file\n");
-                            continue;
-                        }
-                        
-                        fseek(f, 0, SEEK_END);
-                        long fsize = ftell(f);
-                        fseek(f, 0, SEEK_SET);
-                        
-                        // Send size
-                        char size_str[64];
-                        snprintf(size_str, sizeof(size_str), "%ld", fsize);
-                        send_string(client_socket, size_str);
-                        
-                        // Wait for ok-size
-                        memset(buffer, 0, 256);
-                        recv_all(client_socket, buffer, 255);
-                        
-                        if (strcmp(buffer, "ok-size") == 0) {
-                             // Send content
-                            char *file_buf = malloc(4096);
-                            size_t n;
-                            while ((n = fread(file_buf, 1, 4096, f)) > 0) {
-                                send(client_socket, file_buf, n, 0);
-                            }
-                            free(file_buf);
-                            fclose(f);
-                            
-                            // Wait for ok-concluded
-                            memset(buffer, 0, 256);
-                            recv_all(client_socket, buffer, 255);
-                            printf("%s\n", buffer);
-                        } else {
-                            printf("Error: Expected ok-size, got %s\n", buffer);
-                        }
-                    } else {
-                        printf("%s\n", buffer);
-                    }
-                    
-                    // Skip the rest of the loop
-                    continue;
-                }
-            }
+            upload(buffer, client_socket);
+            continue;
         }
 
         if (send_all(client_socket, buffer, strlen(buffer) + 1) == 0) {
@@ -285,4 +139,165 @@ int client_session(char *buffer, int client_socket) {
     }
 
     return 1;
+}
+
+void upload(char* buffer, int client_socket) {
+    char cmd[10], arg1[128], arg2[128], arg3[128];
+    int parsed = sscanf(buffer, "%s %s %s %s", cmd, arg1, arg2, arg3);
+    
+    int background = 0;
+    char *local_path = NULL;
+    char *remote_path = NULL;
+
+    if (parsed >= 3) {
+        if (strcmp(arg1, "-b") == 0) {
+            if (parsed < 4) {
+                printf("Usage: upload [-b] <local_path> <remote_path>\n");
+                return;
+            }
+            background = 1;
+            local_path = arg2;
+            remote_path = arg3;
+        } else {
+            local_path = arg1;
+            remote_path = arg2;
+        }
+
+        // Check if local file exists before doing anything
+        if (access(local_path, F_OK) == -1) {
+            printf("Error: Local file '%s' does not exist.\n", local_path);
+            return;
+        }
+
+        if (background) {
+            pid_t pid = fork();
+            if (pid == 0) {
+                // Child process
+                int child_socket = create_client_socket(server_ip, server_port);
+                if (child_socket < 0) exit(1);
+
+                // Login
+                char login_cmd[262];
+                snprintf(login_cmd, sizeof(login_cmd), "login %s", current_user);
+                send_string(child_socket, login_cmd);
+                
+                char resp[256];
+                recv_all(child_socket, resp, 255); // consume "ok-login"
+                
+                // Initiate upload
+                char upload_cmd[512];
+                snprintf(upload_cmd, sizeof(upload_cmd), "upload %s", remote_path);
+                send_string(child_socket, upload_cmd);
+                
+                recv_all(child_socket, resp, 255); // consume "ok-upload" or error
+                if (strncmp(resp, "ok-upload", 9) != 0) {
+                    close(child_socket);
+                    exit(1);
+                }
+
+                // Open local file
+                FILE *f = fopen(local_path, "rb");
+                if (!f) {
+                    close(child_socket);
+                    exit(1);
+                }
+                
+                fseek(f, 0, SEEK_END);
+                long fsize = ftell(f);
+                fseek(f, 0, SEEK_SET);
+                
+                // Send size
+                char size_str[64];
+                snprintf(size_str, sizeof(size_str), "%ld", fsize);
+                send_string(child_socket, size_str);
+                
+                recv_all(child_socket, resp, 255); // consume "ok-size"
+
+                // Send content
+                char *file_buf = malloc(4096);
+                size_t n;
+                while ((n = fread(file_buf, 1, 4096, f)) > 0) {
+                    send_all(child_socket, file_buf, n);
+                }
+                
+                free(file_buf);
+                fclose(f);
+
+                recv_all(child_socket, resp, 255); // consume "ok-concluded"
+
+                //sleep(5);
+                printf("\n[Background] Command: upload %s %s concluded\n%s@server:~$ ", remote_path, local_path, current_user);
+                fflush(stdout);
+                
+                close(child_socket);
+                exit(0);
+            } else {
+                // Parent continues immediately
+                return;
+            }
+        } else {
+            char resp[256];
+            // Foreground upload
+            // Send command to server
+            char upload_cmd[512];
+            snprintf(upload_cmd, sizeof(upload_cmd), "upload %s", remote_path);
+            if (send_all(client_socket, upload_cmd, strlen(upload_cmd) + 1) == 0) {
+                printf("error sending the message. Retry\n>");
+                return;
+            }
+            
+            // Wait for ok-upload
+            memset(buffer, 0, 256);
+            if (recv_all(client_socket, buffer, 255) <= 0) return;
+            
+            if (strcmp(buffer, "ok-upload") == 0) {
+                // Open local file
+                FILE *f = fopen(local_path, "rb");
+                if (!f) {
+                    printf("Error opening local file\n");
+                    return;
+                }
+                
+                fseek(f, 0, SEEK_END);
+                long fsize = ftell(f);
+                fseek(f, 0, SEEK_SET);
+                
+                // Send size
+                char size_str[64];
+                snprintf(size_str, sizeof(size_str), "%ld", fsize);
+                send_string(client_socket, size_str);
+                
+                // Wait for ok-size
+                memset(buffer, 0, 256);
+                recv_all(client_socket, buffer, 255);
+                
+                if (strcmp(buffer, "ok-size") == 0) {
+                        // Send content
+                    char *file_buf = malloc(4096);
+                    size_t n;
+                    while ((n = fread(file_buf, 1, 4096, f)) > 0) {
+                        send(client_socket, file_buf, n, 0);
+                        recv_all(client_socket, resp, 255);
+                        if (strncmp(resp, "ok-concluded", 12) != 0) {
+                            break;
+                        }
+                    }
+                    free(file_buf);
+                    fclose(f);
+                    
+                    printf("upload concluded\n");
+                } else {
+                    printf("Error: Expected ok-size, got %s\n", buffer);
+                }
+            } else {
+                printf("%s\n", buffer);
+            }
+            
+            // Skip the rest of the loop
+            return;
+        }
+    } else {
+        printf("Usage: upload [-b] <local_path> <remote_path>\n");
+        return;
+    }
 }

@@ -141,7 +141,6 @@ int op_move(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
 
 int op_upload(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     (void)dir;
-    char msg[256];
     char file_path[256];
     long file_size = 0;
 
@@ -228,8 +227,7 @@ int op_upload(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
     release_file_lock(lock);
 
     if (total_received == file_size) {
-        snprintf(msg, sizeof(msg), "ok-concluded");
-        send_string(client_socket, msg);
+        send_string(client_socket, "ok-concluded");
         return 0;
     } else {
         return -1;
@@ -408,18 +406,23 @@ int op_read(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     }
     
     // Read content
-    char content[file_length + 1];
-    ssize_t bytes_read = read(fd, content, file_length);
-    close(fd);
-    
-    if (bytes_read == -1) {
-        perror("read failed");
-        send_string(client_socket, "err-Error reading file");
-        reader_unlock(lock);
-        release_file_lock(lock);
-        return -1;
+    char content[4096];
+    int bytes_read = 0;
+    // send 4096 bytes at a time
+    while (file_length > 0) {
+        bytes_read = read(fd, content, sizeof(content)-1);
+        if (bytes_read == -1) {
+            perror("read failed");
+            close(fd);
+            send_string(client_socket, "err-Error reading file");
+            reader_unlock(lock);
+            release_file_lock(lock);
+            return -1;
+        }
+        file_length -= bytes_read;
     }
-    
+
+    close(fd);
     reader_unlock(lock);
     release_file_lock(lock);
     

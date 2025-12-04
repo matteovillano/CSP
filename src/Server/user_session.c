@@ -59,12 +59,6 @@ int user_session(int client_socket, int id, const char *root_dir) {
         return -1;
     }
     printf("Directory opened successfully\n");
-    /* it is used to print the files in the directory, not necessary
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        printf("%s\n", entry->d_name);
-    }
-    closedir(dir);*/
 
     while (1) {
         char input[MAX_COMMAND_LENGTH];
