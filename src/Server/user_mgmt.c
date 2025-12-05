@@ -47,11 +47,11 @@ int handle_client(int client_socket, const char *root_dir) {
 
         if (arg_count == 3) {
             if (strcmp(args[0], "create_user") == 0) {
-                int perm = atoi(args[2]);
-                if (perm < 0 || perm > 777) {
+                if (atoi(args[2]) < 0 || atoi(args[2]) > 777) {
                     send_string(client_socket, "err-permission not valid");
                     continue;
                 }
+                mode_t perm = (mode_t)strtol(args[2], NULL, 8);
                 ret = create_user(args[1], perm, root_dir);
                 if (!ret) {
                     printf("User %s created successfully.\n", args[1]);

@@ -33,6 +33,8 @@ void download_client(char* buffer, int client_socket) {
         if (background) {
             pid_t pid = fork();
             if (pid == 0) {
+                sleep(5); // to simulate the background process
+
                 // Child process
                 int child_socket = create_client_socket(server_ip, server_port);
                 if (child_socket < 0) exit(1);
@@ -92,7 +94,7 @@ void download_client(char* buffer, int client_socket) {
                 fclose(f);
 
                 recv_all(child_socket, resp, 255); // consume "ok-concluded"
-                sleep(5); // to simulate the background process
+                
                 printf("\n[Background] Command: download %s %s concluded\n%s@server:~$ ", remote_path, local_path, current_user);
                 fflush(stdout);
                 
@@ -153,7 +155,7 @@ void download_client(char* buffer, int client_socket) {
                 // Wait for ok-concluded
                 memset(buffer, 0, 256);
                 recv_all(client_socket, buffer, 255);
-                printf("%s\n", buffer);
+                printf("file downloaded\n");
             } else {
                 printf("%s\n", buffer);
             }
@@ -197,6 +199,8 @@ void upload_client(char* buffer, int client_socket) {
         if (background) {
             pid_t pid = fork();
             if (pid == 0) {
+                sleep(5); // to simulate the background process
+
                 // Child process
                 int child_socket = create_client_socket(server_ip, server_port);
                 if (child_socket < 0) exit(1);
@@ -251,7 +255,6 @@ void upload_client(char* buffer, int client_socket) {
 
                 recv_all(child_socket, resp, 255); // consume "ok-concluded"
 
-                sleep(5); // to simulate the background process
                 printf("\n[Background] Command: upload %s %s concluded\n%s@server:~$ ", remote_path, local_path, current_user);
                 fflush(stdout);
                 
@@ -301,16 +304,15 @@ void upload_client(char* buffer, int client_socket) {
                         // Send content
                     char *file_buf = malloc(4096);
                     size_t n;
-                    while ((n = fread(file_buf, 1, 4096, f)) > 0) {
+                    while (fsize > 0) {
+                        n = fread(file_buf, 1, 4096, f);
                         send(client_socket, file_buf, n, 0);
-                        recv_all(client_socket, resp, 255);
-                        if (strncmp(resp, "ok-concluded", 12) != 0) {
-                            break;
-                        }
+                        fsize -= n;
                     }
                     free(file_buf);
                     fclose(f);
-                    
+
+                    recv_all(client_socket, resp, 255); // consume "ok-concluded"
                     printf("upload concluded\n");
                 } else {
                     printf("Error: Expected ok-size, got %s\n", buffer);
@@ -346,12 +348,14 @@ void read_client(char* buffer, int client_socket) {
     char resp[4096];
     while (file_length > 0) {
         int n = recv_all(client_socket, resp, sizeof(resp));
-        if (strncmp(resp, "err", 3) == 0 || strncmp(resp, "ok-concluded", 12) == 0) {
-            break;
+        if (strncmp(resp, "err", 3) == 0) {
+            return;
         }
         printf("%s\n", resp);
         memset(resp, 0, sizeof(resp));
         file_length -= n;
     }
-    printf("%s\n", resp);
+
+    recv_all(client_socket, resp, sizeof(resp)); // consume "ok-concluded"
+    printf("\nfile read\n");
 }

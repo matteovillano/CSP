@@ -12,8 +12,7 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
     char msg[256];
     
     if (arg_count < 2) {
-        sprintf(msg, "err-Usage: create <filename> <permissions> or create -d <dirname> <permissions>");
-        send_string(client_socket, msg);
+        send_string(client_socket, "err-Usage: create <filename> <permissions> or create -d <dirname> <permissions>");
         return -1;
     }
 
@@ -30,7 +29,10 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
             send_string(client_socket, "err-Usage: create -d <dirname> <permissions>");
             return -1;
         }
-        
+        if (atoi(args[2]) < 0 || atoi(args[2]) > 777) {
+            send_string(client_socket, "err-permission not valid");
+            return -1;
+        }
         mode_t mode = (mode_t)strtol(args[2], NULL, 8);
 
         // AT_FDCWD is a constant that represents the current working directory
@@ -43,6 +45,10 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
         snprintf(msg, sizeof(msg), "ok-Directory %s created successfully with permissions %o.", args[1], mode);
         send_string(client_socket, msg);
     } else {
+        if (atoi(args[1]) < 0 || atoi(args[1]) > 777) {
+            send_string(client_socket, "err-permission not valid");
+            return -1;
+        }
         mode_t mode = (mode_t)strtol(args[1], NULL, 8);
 
         int fd = openat(AT_FDCWD, args[0], O_CREAT | O_WRONLY | O_EXCL, mode);
@@ -67,6 +73,11 @@ int op_changemod(int client_socket, int id, DIR *dir, char *args[], int arg_coun
 
     if (arg_count < 2) {
         send_string(client_socket, "err-Usage: chmod <path> <permissions>");
+        return -1;
+    }
+
+    if (atoi(args[1]) < 0 || atoi(args[1]) > 777) {
+        send_string(client_socket, "err-permission not valid");
         return -1;
     }
 
@@ -531,7 +542,6 @@ int op_read(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
         content[bytes_read] = '\0';
         send_string(client_socket, content);
         file_length -= bytes_read;
-        printf("%d bytes left\n", file_length);
     }
 
     printf("File read\n");
