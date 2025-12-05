@@ -40,22 +40,13 @@ int main(int argc, char *argv[]) {
     // create root directory if it doesn't exist
     struct stat st = {0};
     if (stat(root_dir, &st) == -1) {
-        if (mkdir(root_dir, 0777) == -1) {
+        if (mkdir(root_dir, 0770) == -1) {
             perror("mkdir");
             exit(EXIT_FAILURE);
         }
         printf("Created root directory: %s\n", root_dir);
     }
-    /*
-    DIR *dir = opendir(root_dir);
-    if (dir) {
-        printf("Opened root directory: %s\n", root_dir);
-        closedir(dir);
-    } else {
-        perror("opendir");
-        exit(EXIT_FAILURE);
-    }
-    */
+    
     // Create server socket
     server_socket = create_server_socket(port);
     if (server_socket == -1) {

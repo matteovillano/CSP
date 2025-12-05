@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
 
     printf("Connected to server at %s:%d\n", server_ip, server_port);
-    printf("Commands: create <username> <permissions>, delete <username>, login <username>, exit\n");
+    printf("Commands:\n\tcreate_user <username> <permissions>\n\tdelete <username>\n\tlogin <username>\n\texit\n");
     printf("> ");
 
     char buffer[256];
