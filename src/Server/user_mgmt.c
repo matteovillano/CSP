@@ -4,12 +4,13 @@
 #include "../../include/utils.h"
 
 int handle_client(int client_socket, const char *root_dir) {
-
-    char input[MAX_COMMAND_LENGTH];
     
-    printf("User Management Shell\n");
+    char input[MAX_COMMAND_LENGTH];
+
+    printf("------- User Management Shell -------\n");
     
     while (1) {
+        
         char *args[3];
         int ret;
 
@@ -54,40 +55,40 @@ int handle_client(int client_socket, const char *root_dir) {
                 ret = create_user(args[1], perm, root_dir);
                 if (!ret) {
                     printf("User %s created successfully.\n", args[1]);
-                    send_string(client_socket, "ok-create");
+                    send_string(client_socket, "ok-created the user! You can now login");
                 } else {
-                    send_string(client_socket, "err-create");
+                    send_string(client_socket, "err-creating the user");
                 }
             } else {
                 send_string(client_socket, "err-invalid command");
             }
         } else if (arg_count == 2) {
+            int id = get_id_by_username(args[1]);
             /* it is not specified in the assignment but it is a valid command */
             if (strcmp(args[0], "delete") == 0) {
-                int id = get_id_by_username(args[1]);
                 if (id != -1) {
                     delete_user(id, root_dir);
-                    send_string(client_socket, "ok-delete");
+                    send_string(client_socket, "ok-user deleted");
                 } else {
-                    send_string(client_socket, "err-delete");
+                    send_string(client_socket, "err-user not found");
                 }
             } else if (strcmp(args[0], "login") == 0) {
-                int id = get_id_by_username(args[1]);
                 if (id != -1) {
                     printf("User %s logged in successfully.\n", args[1]);
-                    send_string(client_socket, "ok-login");
+                    send_string(client_socket, "ok-login successful");
                     user_session(client_socket, id, root_dir);
                     return 0;
                 } else {
-                    send_string(client_socket, "err-login");
+                    send_string(client_socket, "err-user not found");
                 }
             } else {
-                send_string(client_socket, "err-invalid");
+                send_string(client_socket, "err-invalid command");
             }
         }else {
-            send_string(client_socket, "err-invalid");
+            send_string(client_socket, "err-invalid command");
         }
         print_users();
+        memset(input, 0, sizeof(input));
     }
     return 0;
 }

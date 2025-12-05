@@ -79,8 +79,7 @@ int create_and_login_user(char *buffer, int client_socket) {
             continue;
 
         // if login is successful, break
-        if (!strcmp(buffer, "ok-login")){
-            //printf("%s@server:~$ ", current_user);
+        if (!strcmp(buffer, "ok-login successful")){
             break;
         } else if (!strcmp(buffer, "exit")) {
             return 0;
