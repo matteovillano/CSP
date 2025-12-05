@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     // create root directory if it doesn't exist
     struct stat st = {0};
     if (stat(root_dir, &st) == -1) {
-        if (mkdir(root_dir, 0770) == -1) {
+        if (mkdir(root_dir, 0777) == -1) {
             perror("mkdir");
             exit(EXIT_FAILURE);
         }

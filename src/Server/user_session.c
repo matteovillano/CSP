@@ -13,36 +13,21 @@ int user_session(int client_socket, int id, const char *root_dir) {
     printf("------- User session - User: %s -------\n", username);
 
     // Switch to user identity
-    struct passwd *pwd = getpwnam(username);
+    struct passwd *pwd = getpwnam(username); // get user info
     if (pwd == NULL) {
-        if (getuid() == 0) {
-            perror("getpwnam failed");
-            return -1;
-        } else {
-            // If not root, we might be testing with non-existent system users
-            // Just warn and continue
-            printf("Warning: getpwnam failed for %s (ignored for non-root testing)\n", username);
-        }
+        perror("getpwnam failed");
+        return -1;
     }
 
     restore_privileges(); // Ensure we are root to change UID and chroot
 
-    if (getuid() == 0) {
-        // Chroot to root_dir
-        if (chroot(root_dir) != 0) {
-            perror("chroot failed");
-            return -1;
-        }
-        if (chdir("/") != 0) {
-            perror("chdir / failed");
-            return -1;
-        }
-    } else {
-        // Just chdir to root_dir if not root
-        if (chdir(root_dir) != 0) {
-            perror("chdir root_dir failed");
-            return -1;
-        }
+     if (chroot(root_dir) != 0) {
+        perror("chroot failed");
+        return -1;
+    }
+    if (chdir("/") != 0) {
+        perror("chdir / failed");
+        return -1;
     }
 
     // Change to user's home directory (relative to new root)
@@ -51,20 +36,17 @@ int user_session(int client_socket, int id, const char *root_dir) {
         return -1;
     }
 
-    if (getuid() == 0) {
-        if (setgid(pwd->pw_gid) != 0) {
-            perror("setgid failed");
-            return -1;
-        }
-        if (setuid(pwd->pw_uid) != 0) {
-            perror("setuid failed");
-            return -1;
-        }
-        printf("Process identity switched to UID: %d, GID: %d\n", pwd->pw_uid, pwd->pw_gid);
-        minimize_privileges();
-    } else {
-        printf("Running as non-root, skipping identity switch.\n");
+    if (setgid(pwd->pw_gid) != 0) {
+        perror("setgid failed");
+        return -1;
     }
+    if (setuid(pwd->pw_uid) != 0) {
+        perror("setuid failed");
+        return -1;
+    }
+
+    printf("Process identity switched to UID: %d, GID: %d\n", pwd->pw_uid, pwd->pw_gid);
+    minimize_privileges();
     
     // Open current directory (which is now the user's home)
     DIR *dir;
