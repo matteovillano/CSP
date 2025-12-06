@@ -410,10 +410,13 @@ int op_cd(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
 }
 
 int op_list(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
-    (void)id; (void)dir;
+    (void)dir;
     char *path = ".";
     if (arg_count > 0) {
         path = args[0];
+        if (check_path(client_socket, id, path) != 0) {
+            return -1;
+        }
     }
 
     DIR *d = opendir(path);
@@ -425,16 +428,33 @@ int op_list(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
 
     struct dirent *entry;
     char buffer[4096] = "";
+    struct stat file_stat;
+    char full_path[PATH_MAX];
+
     while ((entry = readdir(d)) != NULL) {
-        strncat(buffer, entry->d_name, sizeof(buffer) - strlen(buffer) - 1);
-        strncat(buffer, "\n", sizeof(buffer) - strlen(buffer) - 1);
+
+        get_full_path(path, full_path);
+        if (stat(full_path, &file_stat) == -1) {
+            perror("stat failed");
+            continue;
+        }
+
+        char line[512];
+        snprintf(line, sizeof(line), "%s %o %ld\n", entry->d_name, file_stat.st_mode & 0777, file_stat.st_size);
+        
+        if (strlen(buffer) + strlen(line) < sizeof(buffer) - 1) {
+            strcat(buffer, line);
+        } else {
+            break;
+        }
     }
     closedir(d);
 
-    // Send the list
-    char msg[4100];
-    snprintf(msg, sizeof(msg), "%s", buffer);
-    send_string(client_socket, msg);
+    if (strlen(buffer) == 0) {
+         send_string(client_socket, "");
+    } else {
+         send_string(client_socket, buffer);
+    }
     return 0;
 }
 

@@ -42,6 +42,7 @@ int create_and_login_user(char *buffer, int client_socket) {
 }
 
 int client_session(char *buffer, int client_socket) {
+    char recv_buffer[4096];
     while(1)
     {
         printf("%s@server:~$ ", current_user);
@@ -67,25 +68,25 @@ int client_session(char *buffer, int client_socket) {
         }
         
         // receive response from server
-        memset(buffer, 0, 256);
-        if (recv_all(client_socket, buffer, 255) <= 0)
+        memset(recv_buffer, 0, 4096);
+        if (recv_all(client_socket, recv_buffer, 4095) <= 0)
             continue;
 
-        if (!strcmp(buffer, "ok-write")) {
+        if (!strcmp(recv_buffer, "ok-write")) {
             printf("----Write content (max 4095 bytes)----\n");
             char content[4096];
             if (fgets(content, 4096, stdin) == NULL)
                 continue;
             send_string(client_socket, content);
-            memset(buffer, 0, 256);
-            if (recv_all(client_socket, buffer, 255) <= 0)
+            memset(recv_buffer, 0, 4096);
+            if (recv_all(client_socket, recv_buffer, 4095) <= 0)
                 continue;
         }
 
-        printf("%s\n", buffer);
+        printf("%s\n", recv_buffer);
         
         // manage responses
-        if (!strcmp(buffer, "exit")){
+        if (!strcmp(recv_buffer, "exit")){
             send_string(client_socket, "exit");
             return 0;
         }        
