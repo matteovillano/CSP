@@ -11,7 +11,12 @@ int op_create(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
     (void)dir;
     char msg[256];
     
-    if (arg_count < 2) {
+    if (arg_count < 2 || arg_count > 3) {
+        send_string(client_socket, "err-Usage: create <filename> <permissions> or create -d <dirname> <permissions>");
+        return -1;
+    }
+
+    if (arg_count > 2 && strcmp(args[0], "-d" != 0)) {
         send_string(client_socket, "err-Usage: create <filename> <permissions> or create -d <dirname> <permissions>");
         return -1;
     }
@@ -71,7 +76,7 @@ int op_changemod(int client_socket, int id, DIR *dir, char *args[], int arg_coun
     (void)dir;
     char msg[256];
 
-    if (arg_count < 2) {
+    if (arg_count < 2 || arg_count > 3) {
         send_string(client_socket, "err-Usage: chmod <path> <permissions>");
         return -1;
     }
@@ -124,7 +129,7 @@ int op_move(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     (void)dir;
     char msg[256];
 
-    if (arg_count < 2) {
+    if (arg_count < 2 || arg_count > 3) {
         send_string(client_socket, "err-Usage: move <source> <destination>");
         return -1;
     }
@@ -155,8 +160,8 @@ int op_upload(int client_socket, int id, DIR *dir, char *args[], int arg_count) 
     char file_path[256];
     long file_size = 0;
 
-    if (arg_count < 1) {
-        send_string(client_socket, "err-Usage: upload <path>");
+    if (arg_count < 1 || arg_count > 3 || (arg_count == 3 && strncmp(args[0], "-b", 2) != 0)) {
+        send_string(client_socket, "err-Invalid arguments");
         return -1;
     }
 
@@ -251,8 +256,8 @@ int op_download(int client_socket, int id, DIR *dir, char *args[], int arg_count
     char file_path[256];
     struct stat file_stat;
 
-    if (arg_count < 1) {
-        send_string(client_socket, "err-Usage: download <path>");
+    if (arg_count < 1 || arg_count > 3 || (arg_count == 3 && strncmp(args[0], "-b", 2) != 0)) {
+        send_string(client_socket, "err-Invalid arguments");
         return -1;
     }
 
@@ -354,7 +359,7 @@ int op_download(int client_socket, int id, DIR *dir, char *args[], int arg_count
 
 int op_cd(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     (void)dir;
-    if (arg_count < 1) {
+    if (arg_count < 1 || arg_count > 1) {
         send_string(client_socket, "err-Usage: cd <path>");
         return -1;
     }
@@ -415,6 +420,7 @@ int op_list(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     if (arg_count > 0) {
         path = args[0];
         if (check_path(client_socket, id, path) != 0) {
+            send_string(client_socket, "err-Invalid path");
             return -1;
         }
     }
@@ -433,7 +439,12 @@ int op_list(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
 
     while ((entry = readdir(d)) != NULL) {
 
-        get_full_path(path, full_path);
+        if (strcmp(path, ".") == 0) {
+            snprintf(full_path, sizeof(full_path), "%s", entry->d_name);
+        } else {
+            snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+        }
+
         if (stat(full_path, &file_stat) == -1) {
             perror("stat failed");
             continue;
@@ -464,7 +475,7 @@ int op_read(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     char file_path[256];
     int offset = 0;
     
-    if (arg_count < 1) {
+    if (arg_count < 1 || arg_count > 2) {
         send_string(client_socket, "err-Usage: read [-offset=<num>] <path>");
         return -1;
     }
@@ -580,7 +591,7 @@ int op_write(int client_socket, int id, DIR *dir, char *args[], int arg_count) {
     char file_path[256];
     int offset = 0;
 
-    if (arg_count < 1) {
+    if (arg_count < 1 || arg_count > 2) {
         send_string(client_socket, "err-Usage: write [-offset=<num>] <path>");
         return -1;
     }

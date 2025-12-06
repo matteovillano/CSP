@@ -93,32 +93,35 @@ int user_session(int client_socket, int id, const char *root_dir) {
         if (strcmp(command, "create") == 0) {
             op_create(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "chmod") == 0) {
+        else if (strcmp(command, "chmod") == 0) {
             op_changemod(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "move") == 0) {
+        else if (strcmp(command, "move") == 0) {
             op_move(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "upload") == 0) {
+        else if (strcmp(command, "upload") == 0) {
             op_upload(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "download") == 0) {
+        else if (strcmp(command, "download") == 0) {
             op_download(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "cd") == 0) {
+        else if (strcmp(command, "cd") == 0) {
             op_cd(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "list") == 0) {
+        else if (strcmp(command, "list") == 0) {
             op_list(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "read") == 0) {
+        else if (strcmp(command, "read") == 0) {
             op_read(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "write") == 0) {
+        else if (strcmp(command, "write") == 0) {
             op_write(client_socket, id, dir, &args[1], arg_count);
         }
-        if (strcmp(command, "delete") == 0) {
+        else if (strcmp(command, "delete") == 0) {
             op_del(client_socket, id, dir, &args[1], arg_count);
+        }
+        else {
+            send_string(client_socket, "err-Invalid command");
         }
     }
     return 0;
